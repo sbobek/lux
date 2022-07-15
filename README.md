@@ -1,4 +1,5 @@
 # LUX
+## About
 Local Uncertain Explanations -- brigns uncertianty into the explainable model in a straightforward way.
 The workflow for LUX looks as follows:
   - You train an arbitrary selected machine learning model on your train dataset. The only requirements is that the model is able to output probabilities.
@@ -7,6 +8,27 @@ The workflow for LUX looks as follows:
   ![](./neighbourhood.png)
   - You obtain a decision stump, which locally explains the model.
   ![](./hmrp.png)
+
+
+```
+## Installation
+First of all  clonde the repository and enter it:
+```
+git clone https://github.com/sbobek/lux.git
+cd lux
+```
+Some of the packages used in LUX anre not available in conda, hence the following code should set up all of the requirements in virtual environment:
+
+```
+conda create --name luxenv
+conda activate luxenv
+conda install pip
+pip install -r requirements.txt
+```
+## Usage
+
+For complete usage see `lux_usage_example.ipynb`
+
 
 # Cite this work
 
@@ -27,4 +49,3 @@ The workflow for LUX looks as follows:
   pages="444--457",
   isbn="978-3-030-77980-1"
 }
-```
