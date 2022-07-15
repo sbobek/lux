@@ -9,9 +9,8 @@ The workflow for LUX looks as follows:
   - You obtain a decision stump, which locally explains the model.
   ![](./hmrp.png)
 
-
-```
 ## Installation
+
 First of all  clonde the repository and enter it:
 ```
 git clone https://github.com/sbobek/lux.git
