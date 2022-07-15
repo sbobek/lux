@@ -10,7 +10,7 @@ The workflow for LUX looks as follows:
   ![](./hmrp.png)
   - You can obtain explanation for a selected instance (the number after # represents confidence of an explanation):
   ```
-  ['IF x2  < 0.22 AND x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
+  ['IF x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
   ```
 
 ## Installation
