@@ -3,10 +3,13 @@
 Local Uncertain Explanations -- brigns uncertianty into the explainable model in a straightforward way.
 The workflow for LUX looks as follows:
   - You train an arbitrary selected machine learning model on your train dataset. The only requirements is that the model is able to output probabilities.
+  
   ![](./decbound-point.png)
   - Next, you generate neighbourgood of an instance you wish to explain and you feed this neighbourhood to your model. This gives you training set to LUX, as the output form the model constains uncertainty of the decisions (probabilities of instance A being at class X)
+  
   ![](./neighbourhood.png)
   - You obtain a decision stump, which locally explains the model and is executable by [HeaRTDroid](https://heartdroid.re) inference engine
+  
   ![](./hmrp.png)
   - You can obtain explanation for a selected instance (the number after # represents confidence of an explanation):
   ```
