@@ -18,10 +18,11 @@ The workflow for LUX looks as follows:
 
 ## Installation
 
-First of all  clonde the repository and enter it:
+First of all  clonde the repository and its submodules, and enter it:
 ```
 git clone https://github.com/sbobek/lux.git
 cd lux
+git submodule update --init --recursive
 ```
 Some of the packages used in LUX anre not available in conda, hence the following code should set up all of the requirements in virtual environment:
 
@@ -45,13 +46,13 @@ from sklearn import svm
 import numpy as np
 import pandas as pd
 # import some data to play with
-scikit_iris = datasets.load_iris()
+iris = datasets.load_iris()
 features = ['sepal_length','sepal_width','petal_length','petal_width']
 target = 'calss'
 
 #create daatframe with columns names as strings (LUX accepts only DataFrames withj string columns names)
 df_iris = pd.DataFrame(iris.data,columns=features)
-df_iris[target] = scikit_iris.target
+df_iris[target] = iris.target
 
 #train classifier
 train, test = train_test_split(df_iris)
