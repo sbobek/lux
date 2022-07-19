@@ -27,7 +27,7 @@ class LUX(BaseEstimator):
             
     def fit(self,X,y, instance_to_explain, exclude_neighbourhood=False, use_parity=True,class_names=None):
         if class_names is None:
-            class_names = np.arange(0,len(y))
+            class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
             raise ValueError('Length of class_names not aligned with number of classess in y')
             
