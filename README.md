@@ -1,4 +1,4 @@
-# LUX
+# LUX (Local Uncertain Explanations)
 ## About
 Local Uncertain Explanations -- brigns uncertianty into the explainable model in a straightforward way.
 The workflow for LUX looks as follows:
@@ -27,7 +27,7 @@ git submodule update --init --recursive
 Some of the packages used in LUX anre not available in conda, hence the following code should set up all of the requirements in virtual environment:
 
 ```
-conda create --name luxenv
+conda create --name luxenv python=3.8
 conda activate luxenv
 conda install pip
 pip install -r requirements.txt
