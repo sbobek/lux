@@ -14,6 +14,7 @@ from pyuid3.data import Data
 from pyuid3.uid3 import UId3
 from pyuid3.uncertain_entropy_evaluator import UncertainEntropyEvaluator
 from sklearn.neighbors import NearestNeighbors
+import warnings
 
 
 class LUX(BaseEstimator):
@@ -73,6 +74,10 @@ class LUX(BaseEstimator):
                     n_neighbors=min(len(X_c_only)-1,max(1,int(self.neighborhood_size*len(X_c_only))))
                     nn = NearestNeighbors(n_neighbors=max(1,int(n_neighbors/len(boundiong_box_points))))
                 else:
+                    min_occurances_lables = list(np.array(y)).count(c)
+                    if self.neighborhood_size > min_occurances_lables:
+                        self.neighborhood_size = min_occurances_lables
+                        warnings.warn("WARNING: neighbourhood size select is smaller than number of instances within a class.")
                     nn = NearestNeighbors(n_neighbors=self.neighborhood_size)
                 nn.fit(X_c_only.values)
                 for instance_to_explain in boundiong_box_points:
