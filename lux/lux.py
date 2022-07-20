@@ -76,7 +76,7 @@ class LUX(BaseEstimator):
                 else:
                     min_occurances_lables = list(np.array(y)).count(c)
                     if self.neighborhood_size > min_occurances_lables:
-                        self.neighborhood_size = min_occurances_lables)
+                        self.neighborhood_size = min_occurances_lables
                         warnings.warn("WARNING: neighbourhood size select is smaller than number of instances within a class.")
                     nn = NearestNeighbors(n_neighbors=self.neighborhood_size)
                 nn.fit(X_c_only.values)
