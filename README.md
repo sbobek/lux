@@ -32,6 +32,13 @@ conda activate luxenv
 conda install pip
 pip install -r requirements.txt
 ```
+If you want to use LUX with [JupyterLab](https://jupyter.org/) install it and run while being in activated in `luxenv` environment:
+
+```
+pip isntall jupyterlab
+jupyter lab
+```
+
 ## Usage
 
 For complete usage see `lux_usage_example.ipynb`
