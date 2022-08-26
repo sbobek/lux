@@ -26,25 +26,28 @@ class LUX(BaseEstimator):
         self.predict_proba = predict_proba
         self.attributes_names = None
             
-    def fit(self,X,y, instance_to_explain, exclude_neighbourhood=False, use_parity=True,class_names=None):
+    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,class_names=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
             raise ValueError('Length of class_names not aligned with number of classess in y')
             
         self.attributes_names=X.columns
+        
+        if isinstance(X_importances, np.ndarray):
+            X_importances = pd.DataFrame(X_importances, columns=self.attributes_names)
             
         if isinstance(instance_to_explain, (list, np.ndarray)):
             if isinstance(instance_to_explain, (list)):
                 instance_to_explain = np.array([instance_to_explain])
             if len(instance_to_explain.shape) == 2:
-                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,class_names=class_names)
+                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,class_names=class_names)
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
         
-    def fit_bounding_boxes(self,X,y, boundiong_box_points, exclude_neighbourhood=False, use_parity=True, class_names=None):
+    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, class_names=None):
         if class_names is None:
-            class_names = np.arange(0,len(y))
+            class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
             raise ValueError('Length of class_names not aligned with number of classess in y')
         
@@ -53,20 +56,27 @@ class LUX(BaseEstimator):
         if len(boundiong_box_points.shape) != 2:
             raise ValueError('Bounding box should be 2D.')
             
+        if X_importances is not None:
+            if not isinstance(X_importances, pd.DataFrame):
+                raise ValueError('Feature importance matrix has to be DataFrame.')
             
-        X_train_sample = self.__create_sample_bb(X,y,boundiong_box_points,exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,class_names=class_names)
-
+        X_train_sample,X_train_sample_importances = self.__create_sample_bb(X,y,boundiong_box_points,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,class_names=class_names)
         y_train_sample = self.predict_proba(X_train_sample)
-        uarff=LUX.generate_uarff(X_train_sample,y_train_sample, class_names=class_names)
-        
+        uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,class_names=class_names)
         data = Data.parse_uarff_from_string(uarff)
         self.uid3 = UId3(max_depth=self.max_depth)
         self.tree = self.uid3.fit(data, entropyEvaluator=UncertainEntropyEvaluator(), depth=0)
         
         
-    def __create_sample_bb(self,X, y,boundiong_box_points,exclude_neighbourhood=False, use_parity=False, class_names=None):
+    def __create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, class_names=None):
         neighbourhoods = []
+        importances = []
         X_train_sample=[]
+        X_train_importances = []
+        if X_importances is not None:
+            if not isinstance(X_importances, pd.DataFrame):
+                raise ValueError('Feature importance matrix has to be DataFrame.')
+            
         if use_parity:
             for c in class_names:
                 X_c_only = X[y==c]
@@ -83,16 +93,28 @@ class LUX(BaseEstimator):
                 for instance_to_explain in boundiong_box_points:
                     _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                     neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
+                    if X_importances is not None:
+                        neighbourhood_importance = X_importances.iloc[ids_c.ravel()]
                 if exclude_neighbourhood:
                     X_train_sample.append(X_c_only[~X_c_only.index.isin(pd.concat(neighbourhoods).index)])
+                    if X_importances is not None:
+                        importances.append(X_importances[~X_importances.index.isin(neighbourhood_importances.index)])
                     neighbourhoods = []
+                elif X_importances is not None:
+                    importances.append(neighbourhood_importance)
     
             if exclude_neighbourhood:
                 X_train_sample = pd.concat(X_train_sample)
             else:
                 X_train_sample = pd.concat(neighbourhoods)
+            
+            if X_importances is not None:
+                X_train_sample_importances = pd.concat(importances)
                 
-            return X_train_sample
+            if X_importances is not None:
+                return X_train_sample, X_train_sample_importances
+            else:
+                return X_train_sample,None
         else:
             X_c_only = X
             if self.neighborhood_size <= 1.0:
@@ -104,13 +126,23 @@ class LUX(BaseEstimator):
             for instance_to_explain in boundiong_box_points:
                 _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
+                if X_importances is not None:
+                        neighbourhood_importance = X_importances.iloc[ids_c.ravel()]
 
             if exclude_neighbourhood:    
                 X_train_sample = X_c_only[~X_c_only.index.isin(pd.concat(neighbourhoods).index)]
+                if X_importances is not None:
+                    X_train_sample_importances = X_importances[~X_importances.index.isin(neighbourhood_importances.index)]
             else:
                 X_train_sample = X_c_only[X_c_only.index.isin(pd.concat(neighbourhoods).index)]
+                if X_importances is not None:
+                    X_train_sample_importances = X_importances[X_importances.index.isin(neighbourhood_importances.index)]
+
                 
-            return X_train_sample
+            if X_importances is not None:
+                return X_train_sample, X_train_sample_importances
+            else:
+                return X_train_sample,None
         
         
     def predict(self,X,y=None):
@@ -150,7 +182,21 @@ class LUX(BaseEstimator):
     
     
     @staticmethod
-    def generate_uarff(X,y,class_names):
+    def generate_uarff(X,y,class_names,X_importances=None):
+        """ Generates uncertain ARFF file
+        Arguments:
+            X : DataFrame containing dataset for training
+            y : target values returned by predict_proba function
+            class_names : names for the classess to be used in uID3
+            X_importances : importances for each reading obtained for instance from SHAP explainer. This matrix should be normalized to the range [0;1].
+        
+        """
+        if X_importances is not None:
+            if not isinstance(X_importances, pd.DataFrame):
+                raise ValueError('Feature importance matrix has to be DataFrame.')
+            if X.shape != X_importances.shape:
+                raise ValueError("Importances for readings have to be exaclty the size of X.")
+                                 
         uarff="@relation lux\n\n"
         for f,t in zip(X.columns,X.dtypes):
             if t in (int, float):
@@ -166,6 +212,9 @@ class LUX(BaseEstimator):
         uarff += '@data\n'
         for i in range(0, X.shape[0]):
             for j in range(0,X.shape[1]):
-                uarff+='{:.2f}'.format(X.iloc[i,j])+'[1],'
+                if X_importances is not None:
+                    uarff+='{:.2f}'.format(X.iloc[i,j])+'['+'{:.2f}'.format(X_importances.iloc[i,j])+'],'
+                else:
+                    uarff+='{:.2f}'.format(X.iloc[i,j])+'[1],'
             uarff+=';'.join([f'{c}[{p}]' for c,p in zip(class_names, y[i,:])])+'\n'
         return uarff
