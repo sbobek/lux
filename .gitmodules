@@ -1,3 +1,4 @@
 [submodule "pyuid3"]
 	path = pyuid3
 	url = https://github.com/sbobek/pyuid3
+	branch = luxuid3

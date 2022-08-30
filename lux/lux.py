@@ -26,7 +26,7 @@ class LUX(BaseEstimator):
         self.predict_proba = predict_proba
         self.attributes_names = None
             
-    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,class_names=None):
+    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,class_names=None, discount_importance = False):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -41,11 +41,11 @@ class LUX(BaseEstimator):
             if isinstance(instance_to_explain, (list)):
                 instance_to_explain = np.array([instance_to_explain])
             if len(instance_to_explain.shape) == 2:
-                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,class_names=class_names)
+                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,class_names=class_names, discount_importance=discount_importance)
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
         
-    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, class_names=None):
+    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, class_names=None, discount_importance=False):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -65,7 +65,7 @@ class LUX(BaseEstimator):
         uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,class_names=class_names)
         data = Data.parse_uarff_from_string(uarff)
         self.uid3 = UId3(max_depth=self.max_depth)
-        self.tree = self.uid3.fit(data, entropyEvaluator=UncertainEntropyEvaluator(), depth=0)
+        self.tree = self.uid3.fit(data, entropyEvaluator=UncertainEntropyEvaluator(), depth=0,discount_importance=discount_importance)
         
         
     def __create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, class_names=None):
