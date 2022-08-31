@@ -2,7 +2,7 @@
 ## Main features
   * Model-agnostic, local explanations of black-box ML models
   * Rule-based explanations (that are executable at the same time)
-  * Possible integration with [Shapley values](https://shap.readthedocs.io/en/latest/) that help in generating high quality rules
+  * Possible integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
   
 ## About
 Local Uncertain Explanations -- brigns uncertianty into the explainable model in a straightforward way.
