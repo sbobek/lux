@@ -94,14 +94,14 @@ class LUX(BaseEstimator):
                     _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                     neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
                     if X_importances is not None:
-                        neighbourhood_importance = X_importances.iloc[ids_c.ravel()]
+                        neighbourhood_importances = X_importances.iloc[ids_c.ravel()]
                 if exclude_neighbourhood:
                     X_train_sample.append(X_c_only[~X_c_only.index.isin(pd.concat(neighbourhoods).index)])
                     if X_importances is not None:
                         importances.append(X_importances[~X_importances.index.isin(neighbourhood_importances.index)])
                     neighbourhoods = []
                 elif X_importances is not None:
-                    importances.append(neighbourhood_importance)
+                    importances.append(neighbourhood_importances)
     
             if exclude_neighbourhood:
                 X_train_sample = pd.concat(X_train_sample)
@@ -127,7 +127,7 @@ class LUX(BaseEstimator):
                 _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
                 if X_importances is not None:
-                        neighbourhood_importance = X_importances.iloc[ids_c.ravel()]
+                    neighbourhood_importances = X_importances.iloc[ids_c.ravel()]
 
             if exclude_neighbourhood:    
                 X_train_sample = X_c_only[~X_c_only.index.isin(pd.concat(neighbourhoods).index)]
