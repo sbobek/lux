@@ -46,7 +46,8 @@ jupyter lab
 
 ## Usage
 
-For complete usage see `lux_usage_example.ipynb`
+  * For complete usage see [lux_usage_example.ipynb](lux_usage_example.ipynb)
+  * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](lux_usage_example_shap.ipynb)
 
 ### Simple exmaple on Iris dataset
 
