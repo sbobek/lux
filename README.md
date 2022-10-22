@@ -1,5 +1,7 @@
 # LUX (Local Uncertain Explanations)
 ## Main features
+  <img align="right"  src="./pix/lux-logo.png" width="200">
+  
   * Model-agnostic, local explanations of black-box ML models
   * Rule-based explanations (that are executable at the same time)
   * Possible integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
