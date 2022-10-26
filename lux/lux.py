@@ -64,7 +64,7 @@ class LUX(BaseEstimator):
         y_train_sample = self.predict_proba(X_train_sample)
         uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,class_names=class_names)
         data = Data.parse_uarff_from_string(uarff)
-        self.uid3 = UId3(max_depth=self.max_depth)
+        self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit, grow_confidence_threshold=self.grow_confidence_threshold)
         self.tree = self.uid3.fit(data, entropyEvaluator=UncertainEntropyEvaluator(), depth=0,discount_importance=discount_importance)
         
         
