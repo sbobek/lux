@@ -205,6 +205,7 @@ class LUX(BaseEstimator):
             else:
                 domain = ','.join(list(X[f].unique()))
                 uarff+='@attribute '+f+' {'+domain+'}\n'
+                print('------------------------------------------INCORRECT------------------------------------------------')
         
 
         domain = ','.join([str(cn) for cn in class_names])
