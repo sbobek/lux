@@ -69,7 +69,7 @@ class LUX(BaseEstimator):
         self.tree = self.uid3.fit(data, entropyEvaluator=uncertain_entropy_evaluator, depth=0,discount_importance=discount_importance,beta=beta)
         
         
-    def __create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, class_names=None):
+    def __create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None):
         neighbourhoods = []
         importances = []
         X_train_sample=[]
@@ -77,19 +77,27 @@ class LUX(BaseEstimator):
         if X_importances is not None:
             if not isinstance(X_importances, pd.DataFrame):
                 raise ValueError('Feature importance matrix has to be DataFrame.')
+                
+        if inverse_sampling:
+            #sample oposite class, then sample class of instance ot explain to make sure the sample is near the 
+            # "nearest boundary"
+            pass
             
         if use_parity:
             for c in class_names:
                 X_c_only = X[y==c]
                 if self.neighborhood_size <= 1.0:
                     n_neighbors=min(len(X_c_only)-1,max(1,int(self.neighborhood_size*len(X_c_only))))
+                    #TODO ADD WARNING
                     nn = NearestNeighbors(n_neighbors=max(1,int(n_neighbors/len(boundiong_box_points))))
                 else:
                     min_occurances_lables = list(np.array(y)).count(c)
                     if self.neighborhood_size > min_occurances_lables:
-                        self.neighborhood_size = min_occurances_lables
+                        n_neighbors = min_occurances_lables
                         warnings.warn("WARNING: neighbourhood size select is smaller than number of instances within a class.")
-                    nn = NearestNeighbors(n_neighbors=self.neighborhood_size)
+                        nn = NearestNeighbors(n_neighbors=n_neighbors)
+                    else:
+                        nn = NearestNeighbors(n_neighbors=self.neighborhood_size)
                 nn.fit(X_c_only.values)
                 for instance_to_explain in boundiong_box_points:
                     _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
@@ -205,8 +213,6 @@ class LUX(BaseEstimator):
             else:
                 domain = ','.join(list(X[f].unique()))
                 uarff+='@attribute '+f+' {'+domain+'}\n'
-                print('------------------------------------------INCORRECT------------------------------------------------')
-        
 
         domain = ','.join([str(cn) for cn in class_names])
         uarff+='@attribute class {'+domain+'}\n'
