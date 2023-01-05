@@ -13,14 +13,18 @@ import seaborn as sns
 from pyuid3.data import Data
 from pyuid3.uid3 import UId3
 from pyuid3.uncertain_entropy_evaluator import UncertainEntropyEvaluator
+from sklearn.neighbors import NeighborhoodComponentsAnalysis
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import OPTICS
 import warnings
 import shap
+import sklearn
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE
 
 class LUX(BaseEstimator):
     
     REPRESENTATIVE_CENTROID = "centroid"
+    REPRESENTATIVE_NEAREST = "nearest"
     
     def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, representative=REPRESENTATIVE_CENTROID, min_samples=5):
         self.neighborhood_size=neighborhood_size
@@ -33,7 +37,7 @@ class LUX(BaseEstimator):
         self.classifier = classifier
         self.min_samples = min_samples
             
-    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,n_jobs=None):
+    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,oversampling=False,n_jobs=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -48,11 +52,13 @@ class LUX(BaseEstimator):
             if isinstance(instance_to_explain, (list)):
                 instance_to_explain = np.array([instance_to_explain])
             if len(instance_to_explain.shape) == 2:
-                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names, discount_importance=discount_importance,uncertain_entropy_evaluator=uncertain_entropy_evaluator,beta=beta,representative=representative,density_sampling=density_sampling,n_jobs=n_jobs)
+                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,
+                                               radius_sampling=radius_sampling,discount_importance=discount_importance,uncertain_entropy_evaluator=uncertain_entropy_evaluator,beta=beta,representative=representative,density_sampling=density_sampling,
+                                               oversampling=oversampling,n_jobs=n_jobs)
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
         
-    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None, discount_importance=False,uncertain_entropy_evaluator=UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False,radius_sampling = False,n_jobs=None):
+    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None, discount_importance=False,uncertain_entropy_evaluator=UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False,radius_sampling = False,oversampling=False,n_jobs=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -69,21 +75,23 @@ class LUX(BaseEstimator):
             if not isinstance(X_importances, pd.DataFrame):
                 raise ValueError('Feature importance matrix has to be DataFrame.')
             
-        X_train_sample,X_train_sample_importances = self.create_sample_bb(X,y,boundiong_box_points,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,representative=representative,density_sampling=density_sampling,n_jobs=n_jobs)
+        X_train_sample,X_train_sample_importances = self.create_sample_bb(X,np.argmax(self.predict_proba(X),axis=1),boundiong_box_points,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,representative=representative,density_sampling=density_sampling,radius_sampling=radius_sampling,n_jobs=n_jobs,
+                                                                         oversampling=oversampling)
         y_train_sample = self.predict_proba(X_train_sample)
         uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,class_names=class_names)
         data = Data.parse_uarff_from_string(uarff)
-        
+        print(f'In fact using: {len(X_train_sample)/len(X)} samples from train set wiuth class balance: {sum(np.argmax(y_train_sample,axis=1))/len(y_train_sample)}')
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit, grow_confidence_threshold=self.grow_confidence_threshold,min_impurity_decrease=self.min_impurity_decrease)
         self.uid3.PARALLEL_ENTRY_FACTOR = 1
         if self.classifier is not None:
-            explainer = shap.Explainer(self.classifier,X,model_output='probability')
-            self.tree = self.uid3.fitshap(data, entropyEvaluator=uncertain_entropy_evaluator, explainer=explainer, depth=0,beta=beta,n_jobs=n_jobs)
+            if discount_importance:
+                warnings.warn("WARNING: when classifier is provided, X_importances and discount_importance have no effect.")
+            self.tree = self.uid3.fitshap(data, entropyEvaluator=uncertain_entropy_evaluator, classifier=self.classifier, depth=0,beta=beta,n_jobs=n_jobs)
         else:
             self.tree = self.uid3.fit(data, entropyEvaluator=uncertain_entropy_evaluator, depth=0,discount_importance=discount_importance,beta=beta,n_jobs=n_jobs)
-        
-    
-    def create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None,representative='centroid', density_sampling=False, radius_sampling = False, n_jobs=None):
+
+            
+    def create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None,representative='centroid', density_sampling=False, radius_sampling = False, radius=None, oversampling=False, n_jobs=None):
         neighbourhoods = []
         importances = []
         X_train_sample=[]
@@ -91,7 +99,11 @@ class LUX(BaseEstimator):
         if X_importances is not None:
             if not isinstance(X_importances, pd.DataFrame):
                     raise ValueError('Feature importance matrix has to be DataFrame.')
-                
+         
+        #nca = NeighborhoodComponentsAnalysis()
+        #nca.fit(X,y)
+        X_nca = X#pd.DataFrame(nca.transform(X), columns=X.columns, index = X.index)
+        
     
         if use_parity:
             for instance_to_explain in boundiong_box_points:
@@ -102,6 +114,7 @@ class LUX(BaseEstimator):
                 importances_bbox=[]
                 for c in class_names_instance_last: 
                     X_c_only = X[y==c]
+                    X_c_only_nca = X_nca[y==c]
                     if self.neighborhood_size <= 1.0:
                         n_neighbors=min(len(X_c_only)-1,max(1,int(self.neighborhood_size*len(X_c_only))))
                         #TODO ADD WARNING
@@ -122,12 +135,13 @@ class LUX(BaseEstimator):
                                                                                  opposite_neighbourhood=neighbourhoods_bbox, 
                                                                                  X_importances = X_importances,
                                                                                 representative=representative,
-                                                                                 nn=nn)
+                                                                                 nn=nn,nca=None)
                         neighbourhoods_bbox+=neighbourhoods_bbox_inv
                         if X_importances is not None:
                             importances_bbox+=importances_bbox_inv
-   
-                    nn.fit(X_c_only.values)
+        
+                    nn.fit(X_c_only_nca.values)
+                    #_,ids_c = nn.kneighbors(nca.transform(np.array(instance_to_explain).reshape(1,-1)))
                     _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                     neighbourhoods_bbox.append(X_c_only.iloc[ids_c.ravel()])
                     if X_importances is not None:   
@@ -148,40 +162,32 @@ class LUX(BaseEstimator):
             if X_importances is not None:
                 X_train_sample_importances = pd.concat(importances) 
                 X_train_sample_importances=X_train_sample_importances[~X_train_sample_importances.index.duplicated(keep='first')]
-            
-            if exclude_neighbourhood:  
-                X_train_sample = X.loc[~X_train_sample.index]
-                if X_importances is not None:
-                    X_train_sample_importances = X_importances.loc[~X_train_sample_importances.index]           
-    
         else:
             if inverse_sampling:
                 warnings.warn("WARNING: neighbourhood size select is smaller than number of instances within a class.")
             X_c_only = X
+            X_c_only_nca = X_nca
             if self.neighborhood_size <= 1.0:
                 n_neighbors=min(len(X_c_only)-1,max(1,int(self.neighborhood_size*len(X_c_only))))
                 nn = NearestNeighbors(n_neighbors=max(1,int(n_neighbors/len(boundiong_box_points))),n_jobs=n_jobs)
             else:
                 nn = NearestNeighbors(n_neighbors=self.neighborhood_size,n_jobs=n_jobs)
-            nn.fit(X_c_only.values)
+            nn.fit(X_c_only_nca.values)
             for instance_to_explain in boundiong_box_points:
+                #TODO:NCA
+                #_,ids_c = nn.kneighbors(nca.transform(np.array(instance_to_explain).reshape(1,-1)))
                 _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
                 if X_importances is not None:
                     neighbourhood_importances = X_importances.iloc[ids_c.ravel()]
 
-            if exclude_neighbourhood:    
-                X_train_sample = X_c_only[~X_c_only.index.isin(pd.concat(neighbourhoods).index)]
-                if X_importances is not None:
-                    X_train_sample_importances = X_importances[~X_importances.index.isin(neighbourhood_importances.index)]
-            else:
-                X_train_sample = X_c_only[X_c_only.index.isin(pd.concat(neighbourhoods).index)]
-                if X_importances is not None:
-                    X_train_sample_importances = X_importances[X_importances.index.isin(neighbourhood_importances.index)]
+            X_train_sample = X_c_only[X_c_only.index.isin(pd.concat(neighbourhoods).index)]
+            if X_importances is not None:
+                X_train_sample_importances = X_importances[X_importances.index.isin(neighbourhood_importances.index)]
 
                     
         if density_sampling:
-            X_copy = X.copy()
+            X_copy = X_nca.copy()
             clu = OPTICS(min_samples=self.min_samples)
             labels = clu.fit_predict(X_copy)
             X_copy['label'] = labels
@@ -189,33 +195,98 @@ class LUX(BaseEstimator):
             X_train_sample['label'] = X_copy['label']
             labels_to_add = X_copy[X_copy.index.isin(X_train_sample.index)]['label'].unique()
             labels_to_add=labels_to_add[labels_to_add != -1]
-            total = pd.concat((X_train_sample, X_copy[X_copy['label'].isin(labels_to_add)]))
+            total = pd.concat((X_train_sample, X.loc[X_copy[X_copy['label'].isin(labels_to_add)].index])) #problem!-> elementr are added 
             X_train_sample=total[~total.index.duplicated(keep='first')].drop(columns=['label'])
             if X_importances is not None:
                 X_importances_copy = X_importances.copy()
-                X_importances_copy['label'] = X_train_c['label'].values
+                X_importances_copy['label'] = X_copy['label'].values
                 total_importances = pd.concat((X_train_sample_importances, X_importances_copy[X_importances_copy['label'].isin(labels_to_add)]))
                 X_train_sample_importances=total[~total.index.duplicated(keep='first')].drop(columns=['label'])
+                
+        if radius_sampling:
+            X_train_sample_nca = X_nca.loc[X_train_sample.index]
+            if radius is None:
+                #distances = sklearn.metrics.pairwise_distances(X_train_sample_nca, nca.transform(instance_to_explain.reshape(1,-1)))
+                distances = sklearn.metrics.pairwise_distances(X_train_sample_nca, instance_to_explain.reshape(1,-1))
+                radius = max(distances)
+                print(f'Setting radius to {radius}')
+                
+            #distances = sklearn.metrics.pairwise_distances(X_nca, nca.transform(instance_to_explain.reshape(1,-1)))
+            distances = sklearn.metrics.pairwise_distances(X_nca, instance_to_explain.reshape(1,-1))
+            print(f'Farthest point: {max(distances)}')
+            idxs,_ = np.where(distances<=radius)
+            X_train_sample = X.iloc[idxs]
+            if X_importances is not None:
+                X_train_sample_importances = X_importances.iloc[idxs]
+        
+  
+        if exclude_neighbourhood:  
+            X_train_sample = X.loc[~X_train_sample.index]
+            if X_importances is not None:
+                X_train_sample_importances = X_importances.loc[~X_train_sample_importances.index]     
+                
+        if oversampling:
+            if X_importances is not None:
+                warnings.warn("WARNING: X_importances have no effect when oversampling is True.")
+                X_importances = None
+            X_train_sample = self.__oversample(X_train_sample)
                 
         if X_importances is not None:
             return X_train_sample, X_train_sample_importances
         else:
             return X_train_sample,None
+        
+    
+    def __oversample(self,X_train_sample,sigma=1,iterations=3):
+        for iteration in np.arange(0,iterations):
+            for c in np.unique(np.argmax(self.predict_proba(X_train_sample),axis=1)):
+                X_train_input_c  = X_train_sample.loc[np.argmax(self.predict_proba(X_train_sample),axis=1) ==c]
+                #prediction_certainty = np.max(self.predict_proba(X_train_input_c),axis=1)
+                #confidence_threshold = np.mean(prediction_certainty)-sigma*np.std(prediction_certainty)
+                
+                X_train_input = X_train_input_c.sample(int(0.7*len(X_train_input_c)))#[prediction_certainty<confidence_threshold]
+                predictions = np.argmax(self.predict_proba(X_train_sample),axis=1)
+                unique, counts = np.unique(predictions, return_counts=True)
+                try:
+                    sm = BorderlineSMOTE()
+                    X_train_input = pd.concat([X_train_input, X_train_sample[np.argmax(self.predict_proba(X_train_sample),axis=1) !=c]])
+                    X_input_c,_ = sm.fit_resample(X_train_input, np.argmax(self.predict_proba(X_train_input),axis=1))
+                    concatdf = pd.concat((X_input_c, X_train_sample))
+                    X_train_sample =concatdf.loc[~concatdf.duplicated()]
+                except:
+                    warnings.warn("WARNING: Selected class has low number of borderline points.")
+        try:
+            sm = BorderlineSMOTE()
+            X_train_sample, _ = sm.fit_resample(X_train_sample, np.argmax(self.predict_proba(X_train_sample),axis=1))
+        except:
+            warnings.warn("WARNING: Selected class has low number of borderline points.")
+        return X_train_sample
             
-    def __inverse_sampling(self, X,y, instance_to_explain, nn, sampling_class_label, opposite_neighbourhood,X_importances = None, representative='centroid'):
+    def __inverse_sampling(self, X,y, instance_to_explain, nca, nn, sampling_class_label, opposite_neighbourhood,X_importances = None, representative='centroid'):
         #representative as centropid (mean value), but cna be prototype, nearest, etc.
         X_sample = X[y==sampling_class_label]
         if X_importances is not None:
             X_importances_sample = X_importances[(y==sampling_class_label).values]
 
+        #nn.fit(nca.transform(X_sample))
         nn.fit(X_sample)
         inverse_neighbourhood = []
         inverse_neighbourhood_importances = []
         for data in opposite_neighbourhood:    
             # from this class, select representative
             if representative == self.REPRESENTATIVE_CENTROID:
+                #representative_sample = nca.transform(data).mean(axis=0)
                 representative_sample = data.mean(axis=0)
+            elif representative == self.REPRESENTATIVE_NEAREST:
+                #find nearest example to explain_instance and use it as representative_sample
+                nn_inverse = NearestNeighbors(n_neighbors=1)
+                nn_inverse.fit(data)
+                _,ids = nn_inverse.kneighbors(np.array(instance_to_explain).reshape(1,-1))    
+                representative_sample = data.iloc[ids.ravel()[0]]
+                
             #Find closest to the representative sample
+            #TODO NCA
+            #_,ids_c = nn.kneighbors(nca.transform(np.array(representative_sample).reshape(1,-1)))
             _,ids_c = nn.kneighbors(np.array(representative_sample).reshape(1,-1))
             #Save in neighbouirhood and importances
             inverse_neighbourhood.append(X_sample.iloc[ids_c.ravel()])
@@ -241,7 +312,7 @@ class LUX(BaseEstimator):
                 
         X=pd.concat((X,y),axis=1)
         XData = Data.parse_dataframe(X,'lux')
-        return [f.get_name() for f in self.uid3.predict(XData.get_instances())]
+        return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
     
     def justify(self,X):
         """Traverse down the path for given x."""
