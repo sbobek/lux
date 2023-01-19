@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pyuid3.data import Data
 from pyuid3.uid3 import UId3
-from pyuid3.uncertain_entropy_evaluator import UncertainEntropyEvaluator
+from pyuid3.entropy_evaluator import *
 from sklearn.neighbors import NeighborhoodComponentsAnalysis
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import OPTICS
@@ -37,7 +37,7 @@ class LUX(BaseEstimator):
         self.classifier = classifier
         self.min_samples = min_samples
             
-    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,oversampling=False,n_jobs=None):
+    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,oversampling=False,categorical=None,n_jobs=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -54,11 +54,12 @@ class LUX(BaseEstimator):
             if len(instance_to_explain.shape) == 2:
                 return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,
                                                radius_sampling=radius_sampling,discount_importance=discount_importance,uncertain_entropy_evaluator=uncertain_entropy_evaluator,beta=beta,representative=representative,density_sampling=density_sampling,
-                                               oversampling=oversampling,n_jobs=n_jobs)
+                                               oversampling=oversampling,categorical=categorical,n_jobs=n_jobs)
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
         
-    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None, discount_importance=False,uncertain_entropy_evaluator=UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False,radius_sampling = False,oversampling=False,n_jobs=None):
+    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None, discount_importance=False,uncertain_entropy_evaluator=UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False,radius_sampling = False,oversampling=False,
+                           categorical=None,n_jobs=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -78,11 +79,12 @@ class LUX(BaseEstimator):
         X_train_sample,X_train_sample_importances = self.create_sample_bb(X,np.argmax(self.predict_proba(X),axis=1),boundiong_box_points,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,representative=representative,density_sampling=density_sampling,radius_sampling=radius_sampling,n_jobs=n_jobs,
                                                                          oversampling=oversampling)
         y_train_sample = self.predict_proba(X_train_sample)
-        uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,class_names=class_names)
+        #limit features here
+        uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,categorical=categorical,class_names=class_names)
         data = Data.parse_uarff_from_string(uarff)
         print(f'In fact using: {len(X_train_sample)/len(X)} samples from train set wiuth class balance: {sum(np.argmax(y_train_sample,axis=1))/len(y_train_sample)}')
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit, grow_confidence_threshold=self.grow_confidence_threshold,min_impurity_decrease=self.min_impurity_decrease)
-        self.uid3.PARALLEL_ENTRY_FACTOR = 1
+        self.uid3.PARALLEL_ENTRY_FACTOR = 100
         if self.classifier is not None:
             if discount_importance:
                 warnings.warn("WARNING: when classifier is provided, X_importances and discount_importance have no effect.")
@@ -145,7 +147,7 @@ class LUX(BaseEstimator):
                     _,ids_c = nn.kneighbors(np.array(instance_to_explain).reshape(1,-1))
                     neighbourhoods_bbox.append(X_c_only.iloc[ids_c.ravel()])
                     if X_importances is not None:   
-                        X_c_only_importances = X_importances.loc[(y==c).values]
+                        X_c_only_importances = X_importances.loc[(y==c)]
                         neighbourhood_importances = X_c_only_importances.iloc[ids_c.ravel()] 
                         importances_bbox.append(neighbourhood_importances)
                             
@@ -336,27 +338,29 @@ class LUX(BaseEstimator):
     
     
     @staticmethod
-    def generate_uarff(X,y,class_names,X_importances=None):
+    def generate_uarff(X,y,class_names,X_importances=None, categorical = None):
         """ Generates uncertain ARFF file
         Arguments:
             X : DataFrame containing dataset for training
             y : target values returned by predict_proba function
             class_names : names for the classess to be used in uID3
-            X_importances : importances for each reading obtained for instance from SHAP explainer. This matrix should be normalized to the range [0;1].
+            X_confidence : confidence for each reading obtained. This matrix should be normalized to the range [0;1].
         
         """
         if X_importances is not None:
             if not isinstance(X_importances, pd.DataFrame):
-                raise ValueError('Feature importance matrix has to be DataFrame.')
+                raise ValueError('Reading confidence matrix has to be DataFrame.')
             if X.shape != X_importances.shape:
-                raise ValueError("Importances for readings have to be exaclty the size of X.")
+                raise ValueError("Confidence for readings have to be exaclty the size of X.")
+        if categorical is None:
+            categorical = [False]*X.shape[1]
                                  
         uarff="@relation lux\n\n"
-        for f,t in zip(X.columns,X.dtypes):
-            if t in (int, float, np.int32, np.int64, np.int):
+        for i,(f,t) in enumerate(zip(X.columns,X.dtypes)):
+            if t in (int, float, np.int32, np.int64, np.int) and not categorical[i]:
                 uarff+=f'@attribute {f} @REAL\n'
-            else:
-                domain = ','.join(list(X[f].unique()))
+            elif categorical[i]:
+                domain = ','.join(map(str,list(X[f].unique())))
                 uarff+='@attribute '+f+' {'+domain+'}\n'
 
         domain = ','.join([str(cn) for cn in class_names])
@@ -366,8 +370,8 @@ class LUX(BaseEstimator):
         for i in range(0, X.shape[0]):
             for j in range(0,X.shape[1]):
                 if X_importances is not None:
-                    uarff+='{:.2f}'.format(X.iloc[i,j])+'['+'{:.2f}'.format(X_importances.iloc[i,j])+'],'
+                    uarff+=f'{X.iloc[i,j]}[{X_importances.iloc[i,j]}],'
                 else:
-                    uarff+='{:.2f}'.format(X.iloc[i,j])+'[1],'
+                    uarff+=f'{X.iloc[i,j]}[1],'
             uarff+=';'.join([f'{c}[{p}]' for c,p in zip(class_names, y[i,:])])+'\n'
         return uarff
