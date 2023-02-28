@@ -83,13 +83,13 @@ class LUX(BaseEstimator):
         #limit features here
         uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,categorical=categorical,class_names=class_names)
         data = Data.parse_uarff_from_string(uarff)
-        print(f'In fact using: {len(X_train_sample)/len(X)} samples from train set wiuth class balance: {sum(np.argmax(y_train_sample,axis=1))/len(y_train_sample)}')
+        
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit, grow_confidence_threshold=self.grow_confidence_threshold,min_impurity_decrease=self.min_impurity_decrease)
         self.uid3.PARALLEL_ENTRY_FACTOR = 100
         if self.classifier is not None:
             if discount_importance:
                 warnings.warn("WARNING: when classifier is provided, X_importances and discount_importance have no effect.")
-            self.tree = self.uid3.fitshap(data, entropyEvaluator=uncertain_entropy_evaluator, classifier=self.classifier, depth=0,beta=beta,n_jobs=n_jobs)
+            self.tree = self.uid3.fit(data, entropyEvaluator=uncertain_entropy_evaluator, classifier=self.classifier, depth=0,beta=beta,n_jobs=n_jobs)
         else:
             self.tree = self.uid3.fit(data, entropyEvaluator=uncertain_entropy_evaluator, depth=0,discount_importance=discount_importance,beta=beta,n_jobs=n_jobs)
 
@@ -342,7 +342,7 @@ class LUX(BaseEstimator):
         XData = Data.parse_dataframe(X,'lux')
         return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
     
-    def justify(self,X):
+    def justify(self,X, to_dict=False):
         """Traverse down the path for given x."""
         if isinstance(X, pd.DataFrame):
             pass
@@ -355,7 +355,10 @@ class LUX(BaseEstimator):
         X=pd.concat((X,y),axis=1)     
         XData = Data.parse_dataframe(X,'lux')
         
-        return [ self.uid3.tree.justification_tree(i).to_pseudocode()  for i in XData.get_instances()]
+        if to_dict:
+            return [ self.uid3.tree.justification_tree(i).to_dict()  for i in XData.get_instances()]
+        else:
+            return [ self.uid3.tree.justification_tree(i).to_pseudocode()  for i in XData.get_instances()]
         
         
     def to_HMR(self):
