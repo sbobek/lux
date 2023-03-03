@@ -1,0 +1,15 @@
+age,integer,continuous
+workclass,string,discrete
+fnlwgt,integer,continuous
+education,string,discrete
+education-num,integer,continuous
+marital-status,string,discrete
+occupation,string,discrete
+relationship,string,discrete
+race,string,discrete
+sex,string,discrete
+capital-gain,integer,continuous
+capital-loss,integer,continuous
+hours-per-week,integer,continuous
+native-country,string,discrete
+class,string,class

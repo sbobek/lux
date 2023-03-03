@@ -1,0 +1,27 @@
+YaDT version 2.0.2
+Yet another Decision Tree builder
+(c) Salvatore Ruggieri, 2002-2019
+http://pages.di.unipi.it/ruggieri/software
+ 
+LICENCE
+
+[Copyright and licence of use]
+
+The YaDT (Yet another Decision Tree builder) software is copyright of SALVATORE RUGGIERI. 
+By downloading the software, the user is granted a personal licence for research and/or educational use. 
+The licence of the YaDT software DOES NOT include commercial use, 
+either alone or as a part of other software.
+
+[Distribution]
+
+The YaDT software cannot be distributed nor copied, all or in part. 
+If used for educational purposes (eg. for classroom excercises), 
+every user must download its own copy and agree on the licence terms. 
+
+[No warranty]
+
+The YaDT software is distributed by the author "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+either expressed or implied, including but not limited to implied warranties of merchantability 
+or fitness for a particular purpose. THE ENTIRE RISK AS TO QUALITY, PERFORMANCE, OR RESULTS DUE 
+TO USE OF THE SOFTWARE IS ASSUMED BY THE USER, AND THE SOFTWARE IS PROVIDED WITHOUT SUPPORT OR 
+OBLIGATION OF ANY KIND TO ASSIST IN ITS USE, MODIFICATION, OR ENHANCEMENT.

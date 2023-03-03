@@ -1,0 +1,17 @@
+handicapped infants,string,discrete
+water project cost sharing,string,discrete
+adoption of the budget resolution,string,discrete
+physician fee freeze,string,discrete
+el salvador aid,string,discrete
+religious groups in schools,string,discrete
+anti satellite test ban,string,discrete
+aid to nicaraguan contras,string,discrete
+mx missile,string,discrete
+immigration,string,discrete
+synfuels corporation cutback,string,discrete
+education spending,string,discrete
+superfund right to sue,string,discrete
+crime,string,discrete
+duty free exports,string,discrete
+export administration act south africa,string,discrete
+class,string,class

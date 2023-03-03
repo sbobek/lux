@@ -1,0 +1,16 @@
+A1,string,discrete
+A2,float,continuous
+A3,float,continuous
+A4,string,discrete
+A5,string,discrete
+A6,string,discrete
+A7,string,discrete
+A8,float,continuous
+A9,string,discrete
+A10,string,discrete
+A11,float,continuous
+A12,string,discrete
+A13,string,discrete
+A14,float,continuous
+A15,float,continuous
+class,string,class

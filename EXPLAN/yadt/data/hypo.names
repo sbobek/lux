@@ -1,0 +1,31 @@
+age,integer,continuous
+sex,string,discrete
+on thyroxine,string,discrete
+query on thyroxine,string,discrete
+on antithyroid medication,string,discrete
+sick,string,discrete
+pregnant,string,discrete
+thyroid surgery,string,discrete
+I131 treatment,string,discrete
+query hypothyroid,string,discrete
+query hyperthyroid,string,discrete
+lithium,string,discrete
+goitre,string,discrete
+tumor,string,discrete
+hypopituitary,string,discrete
+psych,string,discrete
+TSH measured,string,discrete
+TSH,float,continuous
+T3 measured,string,discrete
+T3,float,continuous
+TT4 measured,string,discrete
+TT4,float,continuous
+T4U measured,string,discrete
+T4U,float,continuous
+FTI measured,string,discrete
+FTI,float,continuous
+TBG measured,string,discrete
+TBG,float,continuous
+referral source,string,discrete
+class,string,class
+id,null,ignore

@@ -1,0 +1,36 @@
+date,string,discrete
+plant-stand,string,discrete
+precip,string,discrete
+temp,string,discrete
+hail,string,discrete
+crop-hist,string,discrete
+area-damaged,string,discrete
+severity,string,discrete
+seed-tmt,string,discrete
+germination,string,discrete
+plant-growth,string,discrete
+leaves,string,discrete
+leafspots-halo,string,discrete
+leafspots-marg,string,discrete
+leafspot-size,string,discrete
+leaf-shread,string,discrete
+leaf-malf,string,discrete
+leaf-mild,string,discrete
+stem,string,discrete
+lodging,string,discrete
+stem-cankers,string,discrete
+canker-lesion,string,discrete
+fruiting-bodies,string,discrete
+external decay,string,discrete
+mycelium,string,discrete
+int-discolor,string,discrete
+sclerotia,string,discrete
+fruit-pods,string,discrete
+fruit spots,string,discrete
+seed,string,discrete
+mold-growth,string,discrete
+seed-discolor,string,discrete
+seed-size,string,discrete
+shriveling,string,discrete
+roots,string,discrete
+class,string,class

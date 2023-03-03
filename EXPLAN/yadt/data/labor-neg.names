@@ -1,0 +1,17 @@
+duration,float,continuous
+wage increase first year,float,continuous
+wage increase second year,float,continuous
+wage increase third year,float,continuous
+cost of living adjustment,string,discrete
+working hours,float,continuous
+pension,string,discrete
+standby pay,float,continuous
+shift differential,float,continuous
+education allowance,string,discrete
+statutory holidays,float,continuous
+vacation,string,discrete
+longterm disability assistance,string,discrete
+contribution to dental plan,string,discrete
+bereavement assistance,string,discrete
+contribution to health plan,string,discrete
+class,string,class

@@ -1,0 +1,7 @@
+attribute#1,string,discrete
+attribute#2,string,discrete
+attribute#3,string,discrete
+attribute#4,string,discrete
+attribute#5,string,discrete
+attribute#6,string,discrete
+class,string,class
