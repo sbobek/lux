@@ -342,7 +342,7 @@ class LUX(BaseEstimator):
         XData = Data.parse_dataframe(X,'lux')
         return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
     
-    def justify(self,X, to_dict=False):
+    def justify(self,X, to_dict=False, reduce=True):
         """Traverse down the path for given x."""
         if isinstance(X, pd.DataFrame):
             pass
@@ -356,9 +356,9 @@ class LUX(BaseEstimator):
         XData = Data.parse_dataframe(X,'lux')
         
         if to_dict:
-            return [ self.uid3.tree.justification_tree(i).to_dict()  for i in XData.get_instances()]
+            return [ self.uid3.tree.justification_tree(i).to_dict(reduce=reduce)  for i in XData.get_instances()]
         else:
-            return [ self.uid3.tree.justification_tree(i).to_pseudocode()  for i in XData.get_instances()]
+            return [ self.uid3.tree.justification_tree(i).to_pseudocode(reduce=reduce)  for i in XData.get_instances()]
         
         
     def to_HMR(self):
