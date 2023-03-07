@@ -395,6 +395,7 @@ class LUX(BaseEstimator):
                     if self.categorical is not None:
                         ids_dist = gower.gower_topn(instance_to_explain, rule['covered'],n=1,cat_features = self.categorical,n_jobs=n_jobs)
                         representative_sample = rule['covered'].iloc[ids_dist['index'].ravel()[0]]
+                        rule['counterfactual'] = representative_sample
                         dist = ids_dist['values']
                         rule['distance'] = dist
                     else:
@@ -402,6 +403,7 @@ class LUX(BaseEstimator):
                         nn_inverse.fit(rule['covered'])
                         dist,ids = nn_inverse.kneighbors(instance_to_explain)
                         representative_sample = rule['covered'].iloc[ids.ravel()[0]] 
+                        rule['counterfactual'] = representative_sample
                         rule['distance'] = dist
                 else:
                     raise ValueError("Counterfactual representative can be either 'medoid' or 'nearest'")
