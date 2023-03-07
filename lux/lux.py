@@ -27,6 +27,9 @@ class LUX(BaseEstimator):
     REPRESENTATIVE_CENTROID = "centroid"
     REPRESENTATIVE_NEAREST = "nearest"
     
+    CF_REPRESENTATIVE_MEDOID = "medoid"
+    CF_REPRESENTATIVE_NEAREST = "nearest"
+    
     def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, representative=REPRESENTATIVE_CENTROID, min_samples=5):
         self.neighborhood_size=neighborhood_size
         self.max_depth=max_depth
@@ -37,6 +40,7 @@ class LUX(BaseEstimator):
         self.min_impurity_decrease=min_impurity_decrease
         self.classifier = classifier
         self.min_samples = min_samples
+        self.categorical=None
             
     def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,oversampling=False,categorical=None,n_jobs=None):
         if class_names is None:
@@ -45,6 +49,7 @@ class LUX(BaseEstimator):
             raise ValueError('Length of class_names not aligned with number of classess in y')
             
         self.attributes_names=X.columns
+        self.categorical=categorical
         
         if isinstance(X_importances, np.ndarray):
             X_importances = pd.DataFrame(X_importances, columns=self.attributes_names)
@@ -342,7 +347,7 @@ class LUX(BaseEstimator):
         XData = Data.parse_dataframe(X,'lux')
         return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
     
-    def justify(self,X, to_dict=False):
+    def justify(self,X, to_dict=False, reduce=True):
         """Traverse down the path for given x."""
         if isinstance(X, pd.DataFrame):
             pass
@@ -356,9 +361,61 @@ class LUX(BaseEstimator):
         XData = Data.parse_dataframe(X,'lux')
         
         if to_dict:
-            return [ self.uid3.tree.justification_tree(i).to_dict()  for i in XData.get_instances()]
+            return [ self.uid3.tree.justification_tree(i).to_dict(reduce=reduce)  for i in XData.get_instances()]
         else:
-            return [ self.uid3.tree.justification_tree(i).to_pseudocode()  for i in XData.get_instances()]
+            return [ self.uid3.tree.justification_tree(i).to_pseudocode(reduce=reduce)  for i in XData.get_instances()]
+        
+    def __get_covered(self,rule, dataset, features, categorical=None):
+        if categorical is None:
+            categorical = [False]*len(features)
+        query = []
+        if rule == {}:
+            return 0,0
+        for i,v in rule.items():
+            op = '' if  dict(zip(features, categorical))[i] == False else '=='
+            query.append(f'{i}{op}'+f'and {i}{op}'.join(v))
+
+        covered = dataset.query(' and '.join(query))
+        return covered
+    
+    def counterfactual(self, instance_to_explain, background , counterfactual_representative='medoid', reduce=True, topn=None):
+        not_class = np.argmax(self.predict_proba(instance_to_explain))
+        rules = self.uid3.tree.to_dict(reduce=True)
+        #filter out rules with class same as not_class
+        counterfactual_rules = []
+        for rule in rules:
+            if int(rule['prediction']) != not_class:
+                counterfactual_rules.append(rule)
+                #find coverage points from background
+                rule['covered'] = self.__get_covered(rule['rule'],background, self.attributes_names, self.categorical)
+                #find candidates from background according to counterfactual_representative
+                if counterfactual_representative == self.CF_REPRESENTATIVE_MEDOID:
+                    pass
+                elif counterfactual_representative == self.CF_REPRESENTATIVE_NEAREST:
+                    if self.categorical is not None:
+                        ids_dist = gower.gower_topn(instance_to_explain, rule['covered'],n=1,cat_features = self.categorical,n_jobs=n_jobs)
+                        representative_sample = rule['covered'].iloc[ids_dist['index'].ravel()[0]]
+                        rule['counterfactual'] = representative_sample
+                        dist = ids_dist['values']
+                        rule['distance'] = dist
+                    else:
+                        nn_inverse = NearestNeighbors(n_neighbors=1,metric='minkowski')
+                        nn_inverse.fit(rule['covered'])
+                        dist,ids = nn_inverse.kneighbors(instance_to_explain)
+                        representative_sample = rule['covered'].iloc[ids.ravel()[0]] 
+                        rule['counterfactual'] = representative_sample
+                        rule['distance'] = dist
+                else:
+                    raise ValueError("Counterfactual representative can be either 'medoid' or 'nearest'")
+                    
+
+        #find closest representative to the instance_to_explain and return as counterfactual, along with rules
+        counterfactual_rules=sorted(counterfactual_rules, key=lambda d: d['distance']) 
+        if topn is None:
+            return  counterfactual_rules
+        else:
+            return counterfactual_rules[:topn]
+
         
         
     def to_HMR(self):
