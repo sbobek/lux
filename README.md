@@ -47,6 +47,8 @@ pip isntall jupyterlab
 jupyter lab
 ```
 
+**Caution**: If you want to use LUX with catgorical data, it is adviced to use [multiprocessing gower distance](https://github.com/sbobek/gower/tree/add-multiprocessing) package (due to high computational complexity of the problem). 
+
 ## Usage
 
   * For complete usage see [lux_usage_example.ipynb](lux_usage_example.ipynb)
