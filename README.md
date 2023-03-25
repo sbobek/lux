@@ -5,6 +5,7 @@
   * Model-agnostic, local explanations of black-box ML models
   * Integrated counterfactual explanations
   * Rule-based explanations (that are executable at the same time)
+  * Oblique trees backbone, which allows to explain more reliable linear decision boundaries
   * Possible integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
   
 ## About
