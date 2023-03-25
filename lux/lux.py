@@ -20,7 +20,7 @@ import warnings
 import shap
 import sklearn
 import gower
-from imblearn.over_sampling import SMOTE, BorderlineSMOTE
+from imblearn.over_sampling import SMOTE, SMOTENC
 
 class LUX(BaseEstimator):
     
@@ -30,7 +30,7 @@ class LUX(BaseEstimator):
     CF_REPRESENTATIVE_MEDOID = "medoid"
     CF_REPRESENTATIVE_NEAREST = "nearest"
     
-    def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, representative=REPRESENTATIVE_CENTROID, min_samples=5):
+    def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, min_samples=5):
         self.neighborhood_size=neighborhood_size
         self.max_depth=max_depth
         self.node_size_limit=node_size_limit
@@ -42,7 +42,7 @@ class LUX(BaseEstimator):
         self.min_samples = min_samples
         self.categorical=None
             
-    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,oversampling=False,categorical=None,n_jobs=None):
+    def fit(self,X,y, instance_to_explain, X_importances = None, exclude_neighbourhood=False, use_parity=True,inverse_sampling=False, class_names=None, discount_importance = False,uncertain_entropy_evaluator = UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False, radius_sampling = False,oversampling=False,categorical=None,prune=False, oblique=False,  n_jobs=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -58,14 +58,12 @@ class LUX(BaseEstimator):
             if isinstance(instance_to_explain, (list)):
                 instance_to_explain = np.array([instance_to_explain])
             if len(instance_to_explain.shape) == 2:
-                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,
-                                               radius_sampling=radius_sampling,discount_importance=discount_importance,uncertain_entropy_evaluator=uncertain_entropy_evaluator,beta=beta,representative=representative,density_sampling=density_sampling,
-                                               oversampling=oversampling,categorical=categorical,n_jobs=n_jobs)
+                return self.fit_bounding_boxes(X=X,y=y,boundiong_box_points=instance_to_explain,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,                                               radius_sampling=radius_sampling,discount_importance=discount_importance,uncertain_entropy_evaluator=uncertain_entropy_evaluator,beta=beta,representative=representative,density_sampling=density_sampling,
+                                               oversampling=oversampling,categorical=categorical,prune=prune,oblique=oblique,n_jobs=n_jobs)
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
         
-    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None, discount_importance=False,uncertain_entropy_evaluator=UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False,radius_sampling = False,oversampling=False,
-                           categorical=None,n_jobs=None):
+    def fit_bounding_boxes(self,X,y, boundiong_box_points, X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None, discount_importance=False,uncertain_entropy_evaluator=UncertainEntropyEvaluator(),beta=1,representative='centroid',density_sampling=False,radius_sampling = False,oversampling=False,categorical=None,prune=False,oblique=False,n_jobs=None):
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names)!=len(np.unique(y)):
@@ -87,16 +85,15 @@ class LUX(BaseEstimator):
         y_train_sample = self.predict_proba(X_train_sample)
         #limit features here
         uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,categorical=categorical,class_names=class_names)
-        data = Data.parse_uarff_from_string(uarff)
+        self.data = Data.parse_uarff_from_string(uarff)
         
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit, grow_confidence_threshold=self.grow_confidence_threshold,min_impurity_decrease=self.min_impurity_decrease)
-        self.uid3.PARALLEL_ENTRY_FACTOR = 100
+        UId3.PARALLEL_ENTRY_FACTOR = 1000
         if self.classifier is not None:
-            if discount_importance:
-                warnings.warn("WARNING: when classifier is provided, X_importances and discount_importance have no effect.")
-            self.tree = self.uid3.fit(data, entropyEvaluator=uncertain_entropy_evaluator, classifier=self.classifier, depth=0,beta=beta,n_jobs=n_jobs)
+            self.tree = self.uid3.fit(self.data, entropyEvaluator=uncertain_entropy_evaluator, classifier=self.classifier, depth=0,beta=beta,prune=prune,oblique=oblique,discount_importance=discount_importance, n_jobs=n_jobs)
         else:
-            self.tree = self.uid3.fit(data, entropyEvaluator=uncertain_entropy_evaluator, depth=0,discount_importance=discount_importance,beta=beta,n_jobs=n_jobs)
+            self.tree = self.uid3.fit(self.data, entropyEvaluator=uncertain_entropy_evaluator,discount_importance=discount_importance,depth=0,beta=beta,prune=prune,oblique=oblique, n_jobs=n_jobs)
+
 
             
     def create_sample_bb(self,X, y,boundiong_box_points,X_importances = None, exclude_neighbourhood=False, use_parity=True, inverse_sampling=False, class_names=None,representative='centroid', density_sampling=False, radius_sampling = False, radius=None, oversampling=False, categorical=None, n_jobs=None):
