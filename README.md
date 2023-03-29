@@ -67,7 +67,7 @@ import pandas as pd
 # import some data to play with
 iris = datasets.load_iris()
 features = ['sepal_length','sepal_width','petal_length','petal_width']
-target = 'calss'
+target = 'class'
 
 #create daatframe with columns names as strings (LUX accepts only DataFrames withj string columns names)
 df_iris = pd.DataFrame(iris.data,columns=features)
@@ -94,7 +94,7 @@ lux.justify(np.array(iris_instance))
 
 The above code should give you the answer as follows:
 ```
-IF petal_length  >= 4.9 AND petal_width  >= 1.2 AND  THEN class = 2 # 0.9147101904644878
+['IF petal_length >= 4.95 THEN class = 2 # 0.8518830138054367\n']
 ```
 
 Alternatively one can get counterfactual explanation for agiven instance by calling:
@@ -106,11 +106,11 @@ print(f"Counterfactual for {iris_instance} to change from class {lux.predict(np.
 The result from the above query should look as follows:
 
 ```
-Counterfactual for [[5.4 3.9 1.7 0.4]] to change from class 0 to class 1: 
-sepal_length    5.0
-sepal_width     3.2
-petal_length    1.2
-petal_width     0.2
+Counterfactual for [[7.7 2.6 6.9 2.3]] to change from class 2 to class 1: 
+sepal_length    6.9
+sepal_width     3.1
+petal_length    5.1
+petal_width     2.3
 ```
 
 ### Rule-based model for local uncertain explanations
@@ -127,51 +127,44 @@ This will generate model which can later be executed by [HeaRTDroid](https://hea
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 xtype [
- name: class, 
-base:symbolic,
- domain : [2,0,1]].
-xtype [
  name: petal_length, 
 base:numeric,
 domain : [-100000 to 100000]].
 xtype [
- name: petal_width, 
-base:numeric,
-domain : [-100000 to 100000]].
+ name: class, 
+base:symbolic,
+ domain : [1,0,2]].
 
 %%%%%%%%%%%%%%%%%%%%%%%%% ATTRIBUTES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
-xattr [ name: class,
- type:class,
- class:simple,
- comm:out ].
 xattr [ name: petal_length,
  type:petal_length,
  class:simple,
  comm:out ].
-xattr [ name: petal_width,
- type:petal_width,
+xattr [ name: class,
+ type:class,
  class:simple,
  comm:out ].
 
 %%%%%%%%%%%%%%%%%%%%%%%% TABLE SCHEMAS DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%
- xschm tree : [petal_length,petal_width]==> [class].
+ xschm tree : [petal_length]==> [class].
 xrule tree/0:
-[petal_length  lt 1.9, petal_width  lt 1.2] ==> [class set 0]. # 0.957062830836548
+[petal_length  lt 3.05] ==> [class set 0]. # 0.9547604784365668
 xrule tree/1:
-[petal_length  gte 1.9, petal_width  lt 1.2] ==> [class set 0]. # 0.9386780937191352
+[petal_length  gte 3.05, petal_length  lt 4.95] ==> [class set 1]. # 0.7791224578056789
 xrule tree/2:
-[petal_length  lt 4.9, petal_width  gte 1.2] ==> [class set 1]. # 0.8517079680142385
-xrule tree/3:
-[petal_length  gte 4.9, petal_width  gte 1.2] ==> [class set 2]. # 0.9147101904644878
+[petal_length  gte 3.05, petal_length  gte 4.95] ==> [class set 2]. # 0.8518830138054367
 ```
 ### Visualization of the local uncertain explanation
-Similarly you can obtain visualization of the rule-based model in a form of decision tree by executing following code
+Similarly you can obtain visualization of the rule-based model in a form of decision tree by executing following code. 
 
 ``` python
-#prind the uncertain local tree for the given instance
 import graphviz
-lux.uid3.tree.save_dot('tree.dot')
-graphviz.Source.from_file('tree.dot')
+from graphviz import Source
+from IPython.display import SVG, Image
+lux.uid3.tree.save_dot('tree.dot',fmt='.2f',visual=True, background_data=train)
+gvz=graphviz.Source.from_file('tree.dot')
+!dot -Tpng tree.dot > tree.png
+Image('tree.png')
 ```
 
 The code should yeld something like that (depending on the instance that was selected):
