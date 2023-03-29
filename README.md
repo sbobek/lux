@@ -94,7 +94,7 @@ lux.justify(np.array(iris_instance))
 
 The above code should give you the answer as follows:
 ```
-['IF petal_length >= 4.95 THEN class = 2 # 0.8518830138054367\n']
+['IF petal_length >= 5.15 THEN class = 2 # 0.9833409059468439\n']
 ```
 
 Alternatively one can get counterfactual explanation for agiven instance by calling:
