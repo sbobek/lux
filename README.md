@@ -148,11 +148,11 @@ xattr [ name: class,
 %%%%%%%%%%%%%%%%%%%%%%%% TABLE SCHEMAS DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%
  xschm tree : [petal_length]==> [class].
 xrule tree/0:
-[petal_length  lt 3.05] ==> [class set 0]. # 0.9547604784365668
+[petal_length  lt 3.05] ==> [class set 0]. # 0.9579256691362875
 xrule tree/1:
-[petal_length  gte 3.05, petal_length  lt 4.95] ==> [class set 1]. # 0.7791224578056789
+[petal_length  gte 3.05, petal_length  lt 5.15] ==> [class set 1]. # 0.8398308552545226
 xrule tree/2:
-[petal_length  gte 3.05, petal_length  gte 4.95] ==> [class set 2]. # 0.8518830138054367
+[petal_length  gte 3.05, petal_length  gte 5.15] ==> [class set 2]. # 0.9833409059468439
 ```
 ### Visualization of the local uncertain explanation
 Similarly you can obtain visualization of the rule-based model in a form of decision tree by executing following code. 
