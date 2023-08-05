@@ -9,7 +9,7 @@ from collections import Counter
 from scipy import sparse
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 from sklearn.utils import _safe_indexing, check_array, check_random_state
-
+from sklearn.metrics import pairwise_distances
 
 from imblearn.utils import Substitution, check_target_type
 from imblearn.utils._docstring import _n_jobs_docstring, _random_state_docstring
@@ -27,7 +27,8 @@ class UncertainSMOTE(BaseSMOTE):
         n_jobs=None,
         sigma=1,
         m_neighbors=10,
-        min_samples=0.02,
+        min_samples=0.1,
+        instance_to_explain=None, 
         kind="borderline-1",
     ):
         super().__init__(
@@ -41,6 +42,7 @@ class UncertainSMOTE(BaseSMOTE):
         self.predict_proba=predict_proba
         self.sigma=sigma
         self.min_samples=min_samples
+        self.instance_to_explain = instance_to_explain
 
 
     def _fit_resample(self, X, y):
@@ -170,24 +172,19 @@ class UncertainSMOTE(BaseSMOTE):
         prediction_certainty = np.max(self.predict_proba(c_labels),axis=1)
         
         #shuld this be thresholded like that, or keep n-lowest?
-        confidence_threshold = np.mean(prediction_certainty)-self.sigma*np.std(prediction_certainty)
+        confidence_threshold = np.mean(prediction_certainty)-self.sigma*np.std(prediction_certainty) #changed to + (plus)
         
-        
-        #x = nn_estimator.kneighbors(samples, return_distance=False)[:, 1:]
-        
-#         nn_label = (y[x] != target_class).astype(int)
-#         n_maj = np.sum(nn_label, axis=1)
+        if self.instance_to_explain is not None:
+            distances = pairwise_distances(self.instance_to_explain.reshape(1,-1),c_labels)  
+            distancee_threshold = np.mean(distances)-self.sigma*np.std(distances)
+            distance_mask = (distances < distancee_threshold)[0]
+        else:
+            distance_mask = (prediction_certainty<0)
 
         if kind == "danger":
-#             # Samples are in danger for m/2 <= m' < m
-#             return np.bitwise_and(
-#                 n_maj >= (nn_estimator.n_neighbors - 1) / 2,
-#                 n_maj < nn_estimator.n_neighbors - 1,
-#             )
-            return prediction_certainty<confidence_threshold
-        else:  # kind == "noise":
-#             # Samples are noise for m = m'
-#             return n_maj == nn_estimator.n_neighbors - 1
+            return np.bitwise_or(prediction_certainty<confidence_threshold, #changed fom <
+                                         distance_mask)
+        else:  
             return prediction_certainty<0 #always false
         
         
