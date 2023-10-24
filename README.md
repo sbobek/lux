@@ -174,6 +174,15 @@ The code should yeld something like that (depending on the instance that was sel
 # Cite this work
 
 ```
+@misc{bobek2023local,
+      title={Local Universal Rule-based Explanations}, 
+      author={Szymon Bobek and Grzegorz J. Nalepa},
+      year={2023},
+      eprint={2310.14894},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI}
+}
+
 @InProceedings{lux2021iccs,
   author="Bobek, Szymon
   and Nalepa, Grzegorz J.",
