@@ -41,7 +41,7 @@ class LUX(BaseEstimator):
     OS_STRATEGY_IMPORTANCE='importance'
     OS_STRATEGY_BOTH='both'
     
-    def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, min_samples=5,min_generate_samples=0.02,oversampling_strategy='smote'):
+    def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, min_samples=5,min_generate_samples=0.02,unsertainty_sigma=2,oversampling_strategy='smote'):
         self.neighborhood_size=neighborhood_size
         self.max_depth=max_depth
         self.node_size_limit=node_size_limit
@@ -54,6 +54,7 @@ class LUX(BaseEstimator):
         self.categorical=None
         self.min_generate_samples=min_generate_samples
         self.oversampling_strategy=oversampling_strategy
+        self.uncertainty_sigma=uncertainty_sigma
         
         if classifier is None:
             self.oversampling_strategy=self.OS_STRATEGY_SMOTE
@@ -100,6 +101,11 @@ class LUX(BaseEstimator):
                                                                          oversampling=oversampling, categorical=categorical)
         y_train_sample = self.predict_proba(X_train_sample)
         #limit features here
+        
+        threshold_proba = np.max(lux.predict_proba(i2e))
+        proball = np.max(lux.predict_proba(train[features]),axis=1)
+        threshold = np.max((np.mean(proball)-self.uncertainty_sigma*np.std(proball),threshold_proba))
+        X_train_sample = X_train_sample[proball>=threshold_proba]
         
         #no proba predictor
         y_train_sample_proba = self.predict_proba(X_train_sample)
