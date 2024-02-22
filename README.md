@@ -1,20 +1,19 @@
-# LUX (Local Uncertain Explanations)
+# LUX (Local Universal Rule-based Explainer)
 ## Main features
   <img align="right"  src="./pix/lux-logo.png" width="200">
   
-  * Model-agnostic, local explanations of black-box ML models
+  * Model-agnostic, rule-based and visual local explanations of black-box ML models
   * Integrated counterfactual explanations
   * Rule-based explanations (that are executable at the same time)
   * Oblique trees backbone, which allows to explain more reliable linear decision boundaries
-  * Possible integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
+  * Integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
   
 ## About
-Local Uncertain Explanations -- brigns uncertianty into the explainable model in a straightforward way.
 The workflow for LUX looks as follows:
   - You train an arbitrary selected machine learning model on your train dataset. The only requirements is that the model is able to output probabilities.
   
   ![](./decbound-point.png)
-  - Next, you generate neighbourgood of an instance you wish to explain and you feed this neighbourhood to your model. This gives you training set to LUX, as the output form the model constains uncertainty of the decisions (probabilities of instance A being at class X)
+  - Next, you generate neighbourhood of an instance you wish to explain and you feed this neighbourhood to your model. 
   
   ![](./neighbourhood.png)
   - You obtain a decision stump, which locally explains the model and is executable by [HeaRTDroid](https://heartdroid.re) inference engine
@@ -27,28 +26,18 @@ The workflow for LUX looks as follows:
 
 ## Installation
 
-First of all  clonde the repository and its submodules, and enter it:
-```
-git clone https://github.com/sbobek/lux.git
-cd lux
-git submodule update --init --recursive
-```
-Some of the packages used in LUX anre not available in conda, hence the following code should set up all of the requirements in virtual environment:
 
 ```
-conda create --name luxenv python=3.8
-conda activate luxenv
-conda install pip
-pip install -r requirements.txt
+pip install lux-explainer
 ```
-If you want to use LUX with [JupyterLab](https://jupyter.org/) install it and run while being in activated in `luxenv` environment:
+If you want to use LUX with [JupyterLab](https://jupyter.org/) install it and run:
 
 ```
 pip isntall jupyterlab
 jupyter lab
 ```
 
-**Caution**: If you want to use LUX with catgorical data, it is adviced to use [multiprocessing gower distance](https://github.com/sbobek/gower/tree/add-multiprocessing) package (due to high computational complexity of the problem). 
+**Caution**: If you want to use LUX with categorical data, it is advised to use [multiprocessing gower distance](https://github.com/sbobek/gower/tree/add-multiprocessing) package (due to high computational complexity of the problem). 
 
 ## Usage
 
