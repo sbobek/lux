@@ -12,13 +12,13 @@
 The workflow for LUX looks as follows:
   - You train an arbitrary selected machine learning model on your train dataset. The only requirements is that the model is able to output probabilities.
   
-  ![](./decbound-point.png)
+  ![](https://raw.githubusercontent.com/sbobek/lux/main/pix/decbound-point.png)
   - Next, you generate neighbourhood of an instance you wish to explain and you feed this neighbourhood to your model. 
   
-  ![](./neighbourhood.png)
+  ![](https://raw.githubusercontent.com/sbobek/lux/main/pix/neighbourhood.png)
   - You obtain a decision stump, which locally explains the model and is executable by [HeaRTDroid](https://heartdroid.re) inference engine
   
-  ![](./hmrp.png)
+  ![](https://raw.githubusercontent.com/sbobek/lux/main/pix/hmrp.png)
   - You can obtain explanation for a selected instance (the number after # represents confidence of an explanation):
   ```
   ['IF x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
@@ -41,8 +41,8 @@ jupyter lab
 
 ## Usage
 
-  * For complete usage see [lux_usage_example.ipynb](lux_usage_example.ipynb)
-  * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](lux_usage_example_shap.ipynb)
+  * For complete usage see [lux_usage_example.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example.ipynb)
+  * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example_shap.ipynb)
 
 ### Simple exmaple on Iris dataset
 
@@ -158,7 +158,7 @@ Image('tree.png')
 
 The code should yeld something like that (depending on the instance that was selected):
 
-![](./utree.png)
+![](https://raw.githubusercontent.com/sbobek/lux/main/pix/utree.png)
 
 # Cite this work
 

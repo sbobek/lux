@@ -434,6 +434,7 @@ class Tree:
         path = '.'
         features=[]
         target_column = background_data.columns[-1]
+        background_data[target_column] = background_data[target_column].astype(str)
         if not os.path.exists(path+'/imgs/'):
             os.makedirs(path+'/imgs/')
         if parent:
@@ -455,7 +456,11 @@ class Tree:
                 if counterfactual is not None:
                     pos = stats[stats[target_column]==counterfactual[target_column].values[0]].index[0]
                     ax.plot(pos,1, 'ob', markersize=8)
-                ax.bar_label(ax.containers[-1], labels=[f'{l:.2f}%' for l in list(background_data[[target_column]].value_counts(normalize=True).sort_index()*100)], label_type='center')
+
+                for container, label in zip(ax.containers, [f'{l:.2f}%' for l in list(
+                        background_data[[target_column]].value_counts(normalize=True).sort_index() * 100)]):
+                    ax.text(container[-1].get_x() + container[-1].get_width() / 2, container[-1].get_height() / 2,
+                            label, ha='center', va='center')
                 plt.savefig(f'{path}/imgs/{hash(parent)}.{file_format}', format=file_format,bbox_inches='tight')
                 plt.close()
                 result += f"{hash(parent)}[label=\"\",shape=box, color={col},image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"
