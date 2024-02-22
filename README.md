@@ -94,7 +94,7 @@ lux.justify(np.array(iris_instance))
 
 The above code should give you the answer as follows:
 ```
-['IF petal_length >= 4.95 THEN class = 2 # 0.8518830138054367\n']
+['IF petal_length >= 5.15 THEN class = 2 # 0.9833409059468439\n']
 ```
 
 Alternatively one can get counterfactual explanation for agiven instance by calling:
@@ -174,19 +174,11 @@ The code should yeld something like that (depending on the instance that was sel
 # Cite this work
 
 ```
-@InProceedings{lux2021iccs,
-  author="Bobek, Szymon
-  and Nalepa, Grzegorz J.",
-  editor="Paszynski, Maciej
-  and Kranzlm{\"u}ller, Dieter
-  and Krzhizhanovskaya, Valeria V.
-  and Dongarra, Jack J.
-  and Sloot, Peter M. A.",
-  title="Introducing Uncertainty into Explainable AI Methods",
-  booktitle="Computational Science -- ICCS 2021",
-  year="2021",
-  publisher="Springer International Publishing",
-  address="Cham",
-  pages="444--457",
-  isbn="978-3-030-77980-1"
+@misc{bobek2023local,
+      title={Local Universal Rule-based Explanations}, 
+      author={Szymon Bobek and Grzegorz J. Nalepa},
+      year={2023},
+      eprint={2310.14894},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI}
 }

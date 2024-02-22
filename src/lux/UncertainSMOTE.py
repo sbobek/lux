@@ -1,3 +1,5 @@
+__all__ = ['UncertainSMOTE']
+
 from imblearn.over_sampling._smote.base import BaseSMOTE
 import numpy as np 
 
