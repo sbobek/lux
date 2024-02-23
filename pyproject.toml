@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lux-explainer"
-version = "1.0.0"
+version = "1.0.1"
 description = "Universal Local Rule-based Explainer"
 readme = "README.md"
 authors = [{ name = "LUX", email = "szymon.bobek@gmail.com" }]
