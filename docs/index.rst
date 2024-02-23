@@ -3,18 +3,41 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to lux-explainer's documentation!
-=========================================
+Welcome to the LUX documentation
+---------------------------------
+
+
+
+**LUX (Local Universal Rule-Based Explainer)** is an XAI algorithm that produces explanations for any type of machine-learning model.
+It provides local explanations in a form of human-readable (and executable) rules, but also provide counterfactual explanations as well as visualization of the explanations.
+
+Install
+=======
+
+LUX can be installed from either `PyPI <https://pypi.org/project/lux-explainer>`_ ::
+
+   pip install lux-explainer
+
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Examples
+
+   Basic Usage examples <basic_examples>
+   SHAP-guided explanation generation examples <shap_examples>
 
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
 
-Indices and tables
-==================
+   API reference <api>
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   Release notes <release_notes>
+   Contributing guide <contributing>
+
+
