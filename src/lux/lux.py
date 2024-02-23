@@ -17,6 +17,11 @@ import warnings
 from sklearn.linear_model import LinearRegression
 import numdifftools as nd
 
+"""
+This module contains functions that implement generation of local rule-based model-agnostic explanations.
+
+"""
+
 
 class LUX(BaseEstimator):
     REPRESENTATIVE_CENTROID = "centroid"
@@ -286,8 +291,9 @@ class LUX(BaseEstimator):
 
                     if metric == 'precomputed':
                         ids_c = \
-                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
-                                         n_jobs=n_jobs)['index']
+                            gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                             n=nn.n_neighbors,
+                                             n_jobs=n_jobs)['index']
                     else:
                         nn.fit(X_c_only.values)
                         _, ids_c = nn.kneighbors(nn_instance_to_explain)
@@ -308,7 +314,6 @@ class LUX(BaseEstimator):
                 X_train_sample_importances = pd.concat(importances)
                 X_train_sample_importances = X_train_sample_importances[
                     ~X_train_sample_importances.index.duplicated(keep='first')]
-
 
             #########################################
             if parity_strategy == 'local':
@@ -350,8 +355,8 @@ class LUX(BaseEstimator):
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 if metric == 'precomputed':
                     ids_c = \
-                    gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
-                                     n_jobs=n_jobs)['index']
+                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
+                                         n_jobs=n_jobs)['index']
                 else:
                     _, ids_c = nn.kneighbors(nn_instance_to_explain)
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
@@ -757,9 +762,11 @@ class LUX(BaseEstimator):
 
         if fulldf.shape[0] > 0:
             upsamples = np.concatenate(
-                fulldf.sample(int(self.min_generate_samples*len(fulldf))).apply(perturb, args=(num, alpha, gradsf, cols, shapcols),
-                                                            axis=1).values)
-            upsamples = upsamples[np.random.choice(upsamples.shape[0], max(len(fulldf),upsamples.shape[0]), replace=False), :]
+                fulldf.sample(int(self.min_generate_samples * len(fulldf))).apply(perturb, args=(
+                num, alpha, gradsf, cols, shapcols),
+                                                                                  axis=1).values)
+            upsamples = upsamples[
+                        np.random.choice(upsamples.shape[0], max(len(fulldf), upsamples.shape[0]), replace=False), :]
         else:
             upsamples = fulldf
 
