@@ -33,6 +33,19 @@ class UncertainSMOTE(BaseSMOTE):
         instance_to_explain=None, 
         kind="borderline-1",
     ):
+        """
+
+        :param predict_proba:
+        :param sampling_strategy:
+        :param random_state:
+        :param k_neighbors:
+        :param n_jobs:
+        :param sigma:
+        :param m_neighbors:
+        :param min_samples:
+        :param instance_to_explain:
+        :param kind:
+        """
         super().__init__(
             sampling_strategy=sampling_strategy,
             random_state=random_state,
@@ -48,6 +61,12 @@ class UncertainSMOTE(BaseSMOTE):
 
 
     def _fit_resample(self, X, y):
+        """
+
+        :param X:
+        :param y:
+        :return:
+        """
         # FIXME: to be removed in 0.12
         if self.n_jobs is not None:
             warnings.warn(
@@ -144,30 +163,18 @@ class UncertainSMOTE(BaseSMOTE):
     
     
     def _in_danger_noise(self, predict_proba, samples, target_class, y, kind="danger"):
-        """Estimate if a set of sample are in danger or noise.
-        Used by BorderlineSMOTE and SVMSMOTE.
-        Parameters
-        ----------
-        nn_estimator : estimator object
-            An estimator that inherits from
-            :class:`~sklearn.neighbors.base.KNeighborsMixin` use to determine
-            if a sample is in danger/noise.
-            NOT USED
-        samples : {array-like, sparse matrix} of shape (n_samples, n_features)
-            The samples to check if either they are in danger or not.
-        target_class : int or str
-            The target corresponding class being over-sampled.
-        y : array-like of shape (n_samples,)
-            The true label in order to check the neighbour labels.
-            NOT USED
-        kind : {'danger', 'noise'}, default='danger'
-            The type of classification to use. Can be either:
-            - If 'danger', check if samples are in danger,
-            - If 'noise', check if samples are noise.
-        Returns
-        -------
-        output : ndarray of shape (n_samples,)
-            A boolean array where True refer to samples in danger or noise.
+        """
+        Estimate if a set of sample are in danger or noise.
+        :param predict_proba: function returning probability estimates for samples
+        :param samples: {array-like, sparse matrix} of shape (n_samples, n_features). The samples to check if either they are in danger or not.
+        :param target_class: nt or str. The target corresponding class being over-sampled.
+        :param y: array-like of shape (n_samples,). The true label in order to check the neighbour labels.
+        :param kind: {'danger', 'noise'}, default='danger'
+        The type of classification to use. Can be either:
+        - If 'danger', check if samples are in danger,
+        - If 'noise', check if samples are noise.
+
+        :return: ndarray of shape (n_samples,). A boolean array where True refer to samples in danger or noise.
         """
         
         c_labels  = samples[np.argmax(self.predict_proba(samples),axis=1) ==target_class]
