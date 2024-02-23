@@ -32,6 +32,20 @@ class LUX(BaseEstimator):
     def __init__(self, predict_proba, classifier=None, neighborhood_size=0.1, max_depth=2, node_size_limit=1,
                  grow_confidence_threshold=0, min_impurity_decrease=0, min_samples=5, min_generate_samples=0.02,
                  uncertainty_sigma=2, oversampling_strategy='smote'):
+        """
+
+        :param predict_proba:
+        :param classifier:
+        :param neighborhood_size:
+        :param max_depth:
+        :param node_size_limit:
+        :param grow_confidence_threshold:
+        :param min_impurity_decrease:
+        :param min_samples:
+        :param min_generate_samples:
+        :param uncertainty_sigma:
+        :param oversampling_strategy:
+        """
         self.neighborhood_size = neighborhood_size
         self.max_depth = max_depth
         self.node_size_limit = node_size_limit
@@ -54,6 +68,30 @@ class LUX(BaseEstimator):
             uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1, representative='centroid',
             density_sampling=False, radius_sampling=False, oversampling=False, categorical=None, prune=False,
             oblique=False, n_jobs=None):
+        """
+
+        :param X:
+        :param y:
+        :param instance_to_explain:
+        :param X_importances:
+        :param exclude_neighbourhood:
+        :param use_parity:
+        :param parity_strategy:
+        :param inverse_sampling:
+        :param class_names:
+        :param discount_importance:
+        :param uncertain_entropy_evaluator:
+        :param beta:
+        :param representative:
+        :param density_sampling:
+        :param radius_sampling:
+        :param oversampling:
+        :param categorical:
+        :param prune:
+        :param oblique:
+        :param n_jobs:
+        :return:
+        """
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names) != len(np.unique(y)):
@@ -86,6 +124,29 @@ class LUX(BaseEstimator):
                            discount_importance=False, uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1,
                            representative='centroid', density_sampling=False, radius_sampling=False, oversampling=False,
                            categorical=None, prune=False, oblique=False, n_jobs=None):
+        """
+
+        :param X:
+        :param y:
+        :param boundiong_box_points:
+        :param X_importances:
+        :param exclude_neighbourhood:
+        :param use_parity:
+        :param parity_strategy:
+        :param inverse_sampling:
+        :param class_names:
+        :param discount_importance:
+        :param uncertain_entropy_evaluator:
+        :param beta:
+        :param representative:
+        :param density_sampling:
+        :param radius_sampling:
+        :param oversampling:
+        :param categorical:
+        :param prune:
+        :param oblique:
+        :param n_jobs:
+        """
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names) != len(np.unique(y)):
@@ -153,6 +214,26 @@ class LUX(BaseEstimator):
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                          representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
                          oversampling=False, categorical=None, n_jobs=None):
+        """
+
+        :param X:
+        :param y:
+        :param boundiong_box_points:
+        :param X_importances:
+        :param exclude_neighbourhood:
+        :param use_parity:
+        :param parity_strategy:
+        :param inverse_sampling:
+        :param class_names:
+        :param representative:
+        :param density_sampling:
+        :param radius_sampling:
+        :param radius:
+        :param oversampling:
+        :param categorical:
+        :param n_jobs:
+        :return:
+        """
         neighbourhoods = []
         importances = []
 
@@ -228,7 +309,7 @@ class LUX(BaseEstimator):
                 X_train_sample_importances = X_train_sample_importances[
                     ~X_train_sample_importances.index.duplicated(keep='first')]
 
-            # TODO: filter out samples which are further away than the max distance to the point in nearest class
+
             #########################################
             if parity_strategy == 'local':
                 X_train_sample_c = X_train_sample.copy()
@@ -361,6 +442,15 @@ class LUX(BaseEstimator):
             return X_train_sample, None
 
     def __oversample_smote(self, X_train_sample, sigma=1, iterations=1, instance_to_explain=None, categorical=None):
+        """
+
+        :param X_train_sample:
+        :param sigma:
+        :param iterations:
+        :param instance_to_explain:
+        :param categorical:
+        :return:
+        """
         for iteration in np.arange(0, iterations):
             try:
                 sm = UncertainSMOTE(predict_proba=self.predict_proba, sigma=sigma, sampling_strategy='all',
@@ -376,6 +466,21 @@ class LUX(BaseEstimator):
     def __inverse_sampling(self, X, y, instance_to_explain, nn, sampling_class_label, opposite_neighbourhood,
                            X_importances=None, representative='centroid', categorical=None, metric='minkowski',
                            n_jobs=None):
+        """
+
+        :param X:
+        :param y:
+        :param instance_to_explain:
+        :param nn:
+        :param sampling_class_label:
+        :param opposite_neighbourhood:
+        :param X_importances:
+        :param representative:
+        :param categorical:
+        :param metric:
+        :param n_jobs:
+        :return:
+        """
         # representative as centropid (mean value), but cna be prototype, nearest, etc.
         X_sample = X[y == sampling_class_label]
         if X_importances is not None:
@@ -420,6 +525,12 @@ class LUX(BaseEstimator):
             return inverse_neighbourhood, None
 
     def predict(self, X, y=None):
+        """
+
+        :param X:
+        :param y:
+        :return:
+        """
         if isinstance(X, pd.DataFrame):
             pass
         elif isinstance(X, np.ndarray):
@@ -436,7 +547,12 @@ class LUX(BaseEstimator):
         return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
 
     def justify(self, X, to_dict=False, reduce=True):
-        """Traverse down the path for given x."""
+        """Traverse down the path for given x.
+        :param X:
+        :param to_dict:
+        :param reduce:
+        :return:
+        """
         if isinstance(X, pd.DataFrame):
             pass
         elif isinstance(X, np.ndarray):
@@ -455,6 +571,14 @@ class LUX(BaseEstimator):
             return [self.uid3.tree.justification_tree(i).to_pseudocode(reduce=reduce) for i in XData.get_instances()]
 
     def __get_covered(self, rule, dataset, features, categorical=None):
+        """
+
+        :param rule:
+        :param dataset:
+        :param features:
+        :param categorical:
+        :return:
+        """
         if categorical is None:
             categorical = [False] * len(features)
         query = []
@@ -469,6 +593,16 @@ class LUX(BaseEstimator):
 
     def counterfactual(self, instance_to_explain, background, counterfactual_representative='medoid', reduce=True,
                        topn=None, n_jobs=None):
+        """
+
+        :param instance_to_explain:
+        :param background:
+        :param counterfactual_representative:
+        :param reduce:
+        :param topn:
+        :param n_jobs:
+        :return:
+        """
         not_class = np.argmax(self.predict_proba(instance_to_explain))
         rules = self.uid3.tree.to_dict(reduce=reduce)
         bbox_predictions = np.argmax(self.predict_proba(background), axis=1)
@@ -523,6 +657,11 @@ class LUX(BaseEstimator):
             return counterfactual_rules[:topn]
 
     def __getshap(self, X_train_sample):
+        """
+
+        :param X_train_sample:
+        :return:
+        """
         # calculate shap values
         try:
             explainer = shap.Explainer(self.classifier, X_train_sample)
@@ -548,6 +687,13 @@ class LUX(BaseEstimator):
         return shap_values, expected_values
 
     def __importance_sampler(self, X_train_sample, instance_to_explain, num=10):
+        """
+
+        :param X_train_sample:
+        :param instance_to_explain:
+        :param num:
+        :return:
+        """
         shap_values, _ = self.__getshap(X_train_sample)
         abs_shap = np.array([abs(sv).mean(1) for sv in shap_values])
         indexer = self.classifier.predict(X_train_sample)
@@ -620,17 +766,22 @@ class LUX(BaseEstimator):
         return pd.concat((pd.DataFrame(upsamples, columns=X_train_sample.columns), X_train_sample))
 
     def to_HMR(self):
+        """
+
+        :return:
+        """
         return self.tree.to_HMR()
 
     @staticmethod
     def generate_uarff(X, y, class_names, X_importances=None, categorical=None):
         """ Generates uncertain ARFF file
-        Arguments:
-            X : DataFrame containing dataset for training
-            y : target values returned by predict_proba function
-            class_names : names for the classess to be used in uID3
-            X_confidence : confidence for each reading obtained. This matrix should be normalized to the range [0;1].
-        
+            :param X: DataFrame containing dataset for training
+            :param y: target values returned by predict_proba function
+            :param class_names: names for the classes to be used in uID3
+            :param X_importances: confidence for each reading obtained. This matrix should be normalized to the range [0;1].
+            :param categorical: array indicating which parameters should be treated as categorical
+            :return: String representing the ARFF file
+
         """
         if X_importances is not None:
             if not isinstance(X_importances, pd.DataFrame):
