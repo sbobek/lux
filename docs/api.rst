@@ -14,7 +14,7 @@ Explanation interface
 
 .. _tree_api:
 
-Explanation Tree Backend
+Explanation tree backend
 -------------
 .. autosummary::
     :toctree: generated/
@@ -26,10 +26,13 @@ Explanation Tree Backend
 
 .. _utils_api:
 
-Utilities
+Metrics
 -------------
 .. autosummary::
     :toctree: generated/
 
-    lux.lux.UncertainSMOTE
+    lux.metrics.stability
+    lux.metrics.coverage
+    lux.metrics.fidelity
+
 

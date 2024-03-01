@@ -14,10 +14,17 @@ It provides local explanations in a form of human-readable (and executable) rule
 Install
 =======
 
-LUX can be installed from either `PyPI <https://pypi.org/project/lux-explainer>`_ ::
+LUX can be installed from either `PyPI <https://pypi.org/project/lux-explainer>`_ or directly from source code `PyPI <https://github.com/sbobek/lux>`_
+
+To install form PyPI::
 
    pip install lux-explainer
 
+To install from source code::
+
+   git clone https://github.com/sbobek/lux
+   cd lux
+   pip install .
 
 .. toctree::
    :maxdepth: 2

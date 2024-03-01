@@ -31,7 +31,7 @@ class UId3(BaseEstimator):
     
     PARALLEL_ENTRY_FACTOR = 1000
 
-    def __init__(self, max_depth=2, node_size_limit = 1, grow_confidence_threshold = 0, min_impurity_decrease=0):
+    def __init__(self, max_depth=None, node_size_limit = 1, grow_confidence_threshold = 0, min_impurity_decrease=0):
         self.TREE_DEPTH_LIMIT= max_depth
         self.NODE_SIZE_LIMIT = node_size_limit
         self.GROW_CONFIDENCE_THRESHOLD = grow_confidence_threshold
@@ -114,7 +114,7 @@ class UId3(BaseEstimator):
         
         if len(data.get_instances()) < self.NODE_SIZE_LIMIT:
             return None
-        if depth > self.TREE_DEPTH_LIMIT:
+        if self.TREE_DEPTH_LIMIT is not None and depth > self.TREE_DEPTH_LIMIT:
             return None
         entropy = entropyEvaluator.calculate_entropy(data)
 

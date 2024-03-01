@@ -20,10 +20,57 @@ import numdifftools as nd
 """
 This module contains functions that implement generation of local rule-based model-agnostic explanations.
 
+.. code-block:: python
+
+    from lux.lux import LUX
+    from sklearn import datasets
+    from sklearn.model_selection import train_test_split
+    from sklearn import svm
+    import numpy as np
+    import pandas as pd
+    
+    # import some data to play with
+    iris = datasets.load_iris()
+    features = ['sepal_length','sepal_width','petal_length','petal_width']
+    target = 'class'
+    
+    #create daatframe with columns names as strings (LUX accepts only DataFrames with string columns names)
+    df_iris = pd.DataFrame(iris.data,columns=features)
+    df_iris[target] = iris.target
+    
+    #train classifier
+    train, test = train_test_split(df_iris)
+    clf = svm.SVC(probability=True)
+    clf.fit(train[features],train[target])
+    clf.score(test[features],test[target])
+    
+    #pick some instance from dataset
+    iris_instance = train[features].sample(1).values
+    
+    #train lux on neighbourhood equal 20 instances
+    lux = LUX(predict_proba = clf.predict_proba, 
+        neighborhood_size=20,max_depth=2,  
+        node_size_limit = 1, 
+        grow_confidence_threshold = 0 )
+    lux.fit(train[features], train[target], instance_to_explain=iris_instance,class_names=[0,1,2])
+    
+    #see the justification of the instance being classified for a given class
+    lux.justify(np.array(iris_instance))
 """
 
 
 class LUX(BaseEstimator):
+    """
+     Attributes:
+        REPRESENTATIVE_CENTROID (:obj:`str`): A constant representing centroid as the representative strategy.
+        REPRESENTATIVE_NEAREST (:obj:`str`): A constant representing nearest as the representative strategy.
+        CF_REPRESENTATIVE_MEDOID (:obj:`str`): A constant representing medoid as the counterfactual representative strategy.
+        CF_REPRESENTATIVE_NEAREST (:obj:`str`): A constant representing nearest as the counterfactual representative strategy.
+        OS_STRATEGY_SMOTE (:obj:`str`): A constant representing SMOTE as the oversampling strategy.
+        OS_STRATEGY_IMPORTANCE (:obj:`str`): A constant representing importance sampling as the oversampling strategy.
+        OS_STRATEGY_BOTH (:obj:`str`): A constant representing both SMOTE and importance sampling as the oversampling strategy.
+    """
+
     REPRESENTATIVE_CENTROID = "centroid"
     REPRESENTATIVE_NEAREST = "nearest"
 
@@ -34,23 +81,46 @@ class LUX(BaseEstimator):
     OS_STRATEGY_IMPORTANCE = 'importance'
     OS_STRATEGY_BOTH = 'both'
 
-    def __init__(self, predict_proba, classifier=None, neighborhood_size=0.1, max_depth=2, node_size_limit=1,
+    def __init__(self, predict_proba, classifier=None, neighborhood_size=0.1, max_depth=None, node_size_limit=1,
                  grow_confidence_threshold=0, min_impurity_decrease=0, min_samples=5, min_generate_samples=0.02,
                  uncertainty_sigma=2, oversampling_strategy='smote'):
         """
+    Initialize the LUX explainer model.
 
-        :param predict_proba:
-        :param classifier:
-        :param neighborhood_size:
-        :param max_depth:
-        :param node_size_limit:
-        :param grow_confidence_threshold:
-        :param min_impurity_decrease:
-        :param min_samples:
-        :param min_generate_samples:
-        :param uncertainty_sigma:
-        :param oversampling_strategy:
-        """
+    :param predict_proba: callable
+        The predict_proba function of the balckbox classifier.
+    :type predict_proba: callable
+    :param classifier: object, optional
+        The underlying classifier. If it is provided the SHAP-based sampling can be used.
+    :param neighborhood_size: float, optional
+        The neighborhood size for generating explanations. Default is 0.1.
+    :type neighborhood_size: float
+    :param max_depth: int, optional
+        The maximum depth of the decision tree. Default is None meaning no limit.
+    :type max_depth: int
+    :param node_size_limit: int, optional
+        The minimum number of samples required to split an internal node. Default is 1.
+    :type node_size_limit: int
+    :param grow_confidence_threshold: float, optional
+        The threshold for growing decision tree nodes. Default is 0.
+    :type grow_confidence_threshold: float
+    :param min_impurity_decrease: float, optional
+        A node will be split if this split induces a decrease of the impurity greater than or equal to this value.
+        Default is 0.
+    :type min_impurity_decrease: float
+    :param min_samples: int, optional
+        The minimum number of samples required to be at a leaf node. Default is 5.
+    :type min_samples: int
+    :param min_generate_samples: float, optional
+        The minimum proportion of the dataset size to generate perturbed instances. This is used by the UncertainSMOTE algotrothm. Default is 0.02.
+    :type min_generate_samples: float
+    :param uncertainty_sigma: float, optional
+        The uncertainty parameter sigma used in the filtering uncertain samples. Every sample that is 2*uncertainty_sigma away from the mean will be removed. Default is 2.
+    :type uncertainty_sigma: float
+    :param oversampling_strategy: str, optional
+        The strategy for oversampling. It can be 'smote', 'importance', or 'both'. Default is 'smote'.
+    :type oversampling_strategy: str
+    """
         self.neighborhood_size = neighborhood_size
         self.max_depth = max_depth
         self.node_size_limit = node_size_limit
@@ -69,34 +139,81 @@ class LUX(BaseEstimator):
             self.oversampling_strategy = self.OS_STRATEGY_SMOTE
 
     def fit(self, X, y, instance_to_explain, X_importances=None, exclude_neighbourhood=False, use_parity=True,
-            parity_strategy='global', inverse_sampling=False, class_names=None, discount_importance=False,
+            parity_strategy='global', inverse_sampling=True, class_names=None, discount_importance=False,
             uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1, representative='centroid',
-            density_sampling=False, radius_sampling=False, oversampling=False, categorical=None, prune=False,
+            density_sampling=False, radius_sampling=False, oversampling=False, categorical=None, prune=True,
             oblique=False, n_jobs=None):
         """
+        Fit the LUX explainer model.
 
         :param X:
+            The input data used to train the model.
+        :type X: pandas.DataFrame
         :param y:
+            The target values corresponding to the input data.
+        :type y: array-like
         :param instance_to_explain:
-        :param X_importances:
-        :param exclude_neighbourhood:
-        :param use_parity:
-        :param parity_strategy:
-        :param inverse_sampling:
-        :param class_names:
-        :param discount_importance:
-        :param uncertain_entropy_evaluator:
-        :param beta:
-        :param representative:
-        :param density_sampling:
-        :param radius_sampling:
-        :param oversampling:
-        :param categorical:
-        :param prune:
-        :param oblique:
-        :param n_jobs:
+            The instance(s) to explain. Can be a single instance or a list/array of instances. The instances are not explained one after another, but the neighbourhood is created
+            for the whole set of instances. Hence, they form so called bounding box for the explanation.
+        :type instance_to_explain: array-like or list
+        :param X_importances: optional
+            The importances of features in the input data. If provided as a DataFrame, column names should match feature names.
+        :type X_importances: array-like or pandas.DataFrame or None
+        :param exclude_neighbourhood: optional
+            Whether to exclude the neighborhood of the instance(s) being explained. Default is False.
+        :type exclude_neighbourhood: bool
+        :param use_parity: optional
+            Whether to use parity constraints in explanation generation. Default is True.
+        :type use_parity: bool
+        :param parity_strategy: optional
+            The strategy for applying parity constraints. It can be 'global' or 'local'. Default is 'global'.
+        :type parity_strategy: str
+        :param inverse_sampling: optional
+            Whether to use inverse sampling for feature selection. Default is True.
+        :type inverse_sampling: bool
+        :param class_names: optional
+            The names of the classes. If not provided, inferred from the target values.
+        :type class_names: array-like or None
+        :param discount_importance: optional
+            Whether to discount feature importance. Default is False.
+        :type discount_importance: bool
+        :param uncertain_entropy_evaluator: optional
+            The evaluator for uncertain entropy. Default is UncertainEntropyEvaluator().
+        :type uncertain_entropy_evaluator: object
+        :param beta: optional
+            The beta parameter for F-beta score used in uncertain entropy computation. Default is 1.
+        :type beta: float
+        :param representative: optional
+            The representative method for selecting representative instances. It can be 'centroid' or 'prototype'.
+            Default is 'centroid'.
+        :type representative: str
+        :param density_sampling: optional
+            Whether to use density-based sampling for instance selection. Default is False.
+        :type density_sampling: bool
+        :param radius_sampling: optional
+            Whether to use radius-based sampling for instance selection. Default is False.
+        :type radius_sampling: bool
+        :param oversampling: optional
+            Whether to perform oversampling of instances. Default is False.
+        :type oversampling: bool
+        :param categorical: optional
+            A list indicating whether each feature is categorical or not.
+        :type categorical: array-like or None
+        :param prune: optional
+            Whether to prune branches in decision tree that produces splits which do not change classificaiton result. Default is True.
+        :type prune: bool
+        :param oblique: optional
+            Whether to use oblique decision rules. Default is False.
+        :type oblique: bool
+        :param n_jobs: optional
+            The number of parallel jobs to run. Default is None.
+        :type n_jobs: int or None
+
         :return:
+            The trained LUX explainer model.
+        :rtype: lux.lux.LUX
         """
+
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names) != len(np.unique(y)):
@@ -130,27 +247,36 @@ class LUX(BaseEstimator):
                            representative='centroid', density_sampling=False, radius_sampling=False, oversampling=False,
                            categorical=None, prune=False, oblique=False, n_jobs=None):
         """
+        Fit LUX explainer model for the neighbourhood data defined by the bounding box constructed of several points.
+        Usually only one point is provided.
 
-        :param X:
-        :param y:
-        :param boundiong_box_points:
-        :param X_importances:
-        :param exclude_neighbourhood:
-        :param use_parity:
-        :param parity_strategy:
-        :param inverse_sampling:
-        :param class_names:
-        :param discount_importance:
-        :param uncertain_entropy_evaluator:
-        :param beta:
-        :param representative:
-        :param density_sampling:
-        :param radius_sampling:
-        :param oversampling:
-        :param categorical:
-        :param prune:
-        :param oblique:
-        :param n_jobs:
+        Parameters:
+        :param X: Input features.
+        :type X: array-like or sparse matrix of shape (n_samples, n_features)
+        :param y: Target values.
+        :param bounding_box_points: Points defining the bounding box.
+        :type bounding_box_points: array-like of shape (n_points, n_dimensions)
+        :param X_importances: Importance matrix for features. Default is None.
+        :param exclude_neighbourhood: Whether to exclude neighborhood points. Default is False.
+        :param use_parity: Whether to use parity. Default is True.
+        :param parity_strategy: Strategy for parity. Default is 'global'.
+        :param inverse_sampling: Whether to use inverse sampling. Default is False.
+        :param class_names: Names of classes. Default is None.
+        :param discount_importance: Whether to discount importance. Default is False.
+        :param uncertain_entropy_evaluator: Evaluator for uncertain entropy. Default is UncertainEntropyEvaluator().
+        :param beta: Beta value for fitting. Default is 1.
+        :param representative: Representative strategy. Default is 'centroid'.
+        :param density_sampling: Whether to use density sampling. Default is False.
+        :param radius_sampling: Whether to use radius sampling. Default is False.
+        :param oversampling: Whether to use oversampling. Default is False.
+        :param categorical: Categorical information. Default is None.
+        :param prune: Whether to prune. Default is False.
+        :param oblique: Whether to use oblique splits. Default is False.
+        :param n_jobs: Number of jobs to run in parallel. Default is None.
+
+        Raises:
+        :raises ValueError: If the length of class_names does not match the number of classes in y,
+                           or if bounding_box_points is not 2D.
         """
         if class_names is None:
             class_names = np.unique(y)
@@ -220,24 +346,33 @@ class LUX(BaseEstimator):
                          representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
                          oversampling=False, categorical=None, n_jobs=None):
         """
+        Create a sample for the LUX explainer to be fitted to, based on the provided data.
 
-        :param X:
-        :param y:
-        :param boundiong_box_points:
-        :param X_importances:
-        :param exclude_neighbourhood:
-        :param use_parity:
-        :param parity_strategy:
-        :param inverse_sampling:
-        :param class_names:
-        :param representative:
-        :param density_sampling:
-        :param radius_sampling:
-        :param radius:
-        :param oversampling:
-        :param categorical:
-        :param n_jobs:
-        :return:
+        Parameters:
+        :param X: Input features.
+        :type X: array-like or sparse matrix of shape (n_samples, n_features)
+        :param y: Target values.
+        :param bounding_box_points: Points defining the bounding box.
+        :type bounding_box_points: array-like of shape (n_points, n_dimensions)
+        :param X_importances: Importance matrix for features. Default is None.
+        :param exclude_neighbourhood: Whether to exclude neighborhood points. Default is False.
+        :param use_parity: Whether to use parity. Default is True.
+        :param parity_strategy: Strategy for parity. Default is 'global'.
+        :param inverse_sampling: Whether to use inverse sampling. Default is False.
+        :param class_names: Names of classes. Default is None.
+        :param representative: Representative strategy. Default is 'centroid'.
+        :param density_sampling: Whether to use density sampling. Default is False.
+        :param radius_sampling: Whether to use radius sampling. Default is False.
+        :param radius: Radius for radius sampling. Default is None.
+        :param oversampling: Whether to use oversampling. Default is False.
+        :param categorical: Categorical information. Default is None.
+        :param n_jobs: Number of jobs to run in parallel. Default is None.
+
+        Returns:
+        :return: X_train_sample: Sampled input features.
+        :rtype: array-like or sparse matrix of shape (n_samples, n_features)
+        :return: X_train_sample_importances: Sampled importance matrix for features.
+        :rtype: pd.DataFrame or None
         """
         neighbourhoods = []
         importances = []
@@ -262,7 +397,6 @@ class LUX(BaseEstimator):
                     X_c_only = X[y == c]
                     if self.neighborhood_size <= 1.0:
                         n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                        # TODO ADD WARNING
                         nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))),
                                               n_jobs=n_jobs)
                     else:
