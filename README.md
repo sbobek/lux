@@ -1,3 +1,6 @@
+[![PyPI](https://img.shields.io/pypi/v/lux-explainer)](https://pypi.org/project/lux-explainer/)  ![License](https://img.shields.io/github/license/sbobek/lux)
+ ![PyPI - Downloads](https://img.shields.io/pypi/dm/lux-explainer) [![Documentation Status](https://readthedocs.org/projects/lux-explainer/badge/?version=latest)](https://tsproto.readthedocs.io/en/latest/?badge=latest)
+   
 # LUX (Local Universal Rule-based Explainer)
 ## Main features
   <img align="right"  src="https://raw.githubusercontent.com/sbobek/lux/main/pix/lux-logo.png" width="200">
