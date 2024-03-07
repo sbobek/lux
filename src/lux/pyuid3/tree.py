@@ -443,10 +443,14 @@ class Tree:
             if parent.is_leaf():
                 fig,ax=plt.subplots(figsize=(3,3))
                 if instance2explain is not None:
+                    instance2explain[target_column] = instance2explain[target_column].astype(str)
                     background_data = pd.concat((instance2explain,background_data))
                 if counterfactual is not None:
+                    counterfactual[target_column] = counterfactual[target_column].astype(str)
                     background_data = pd.concat((counterfactual,background_data))
+                background_data[target_column] = background_data[target_column].astype(str)
                 stats = background_data[[target_column]].value_counts().to_frame('samples').sort_index().reset_index()
+
                 sns.barplot(data = stats,
                             x=target_column,y='samples', alpha=0.7,palette=palette,ax=ax)
 
