@@ -3,7 +3,6 @@
 __all__ = ['UId3']
 
 # Cell
-from graphviz import Source
 from sklearn.base import BaseEstimator
 import numpy as np
 import pandas as pd
@@ -17,11 +16,8 @@ from .tree_node import TreeNode
 from .tree_edge import TreeEdge
 from .tree_evaluator import TreeEvaluator
 from .value import Value
-from .reading import Reading
-from .instance import Instance
 from .utils import StandardRescaler
 from multiprocessing import cpu_count,Pool
-import math
 import shap
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import StandardScaler

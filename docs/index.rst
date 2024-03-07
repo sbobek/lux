@@ -14,7 +14,7 @@ It provides local explanations in a form of human-readable (and executable) rule
 Install
 =======
 
-LUX can be installed from either `PyPI <https://pypi.org/project/lux-explainer>`_ or directly from source code `PyPI <https://github.com/sbobek/lux>`_
+LUX can be installed from either `PyPI <https://pypi.org/project/lux-explainer>`_ or directly from source code `GitHub <https://github.com/sbobek/lux>`_
 
 To install form PyPI::
 

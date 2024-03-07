@@ -120,8 +120,6 @@ def coverage(rule, dataset, features, categorical_indicator, prediction,
 
     return len(covered) / len(dataset), accuracy, precision, recall, f1
 
-def fidelity():
-    pass
 
 def average_jackart(rule_1, rule_2, dataset, features, categorical_indicator):
     """
