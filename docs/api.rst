@@ -33,6 +33,5 @@ Metrics
 
     lux.metrics.stability
     lux.metrics.coverage
-    lux.metrics.fidelity
 
 

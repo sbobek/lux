@@ -17,110 +17,75 @@ import warnings
 from sklearn.linear_model import LinearRegression
 import numdifftools as nd
 
-"""
-This module contains functions that implement generation of local rule-based model-agnostic explanations.
 
-.. code-block:: python
-
-    from lux.lux import LUX
-    from sklearn import datasets
-    from sklearn.model_selection import train_test_split
-    from sklearn import svm
-    import numpy as np
-    import pandas as pd
-    
-    # import some data to play with
-    iris = datasets.load_iris()
-    features = ['sepal_length','sepal_width','petal_length','petal_width']
-    target = 'class'
-    
-    #create daatframe with columns names as strings (LUX accepts only DataFrames with string columns names)
-    df_iris = pd.DataFrame(iris.data,columns=features)
-    df_iris[target] = iris.target
-    
-    #train classifier
-    train, test = train_test_split(df_iris)
-    clf = svm.SVC(probability=True)
-    clf.fit(train[features],train[target])
-    clf.score(test[features],test[target])
-    
-    #pick some instance from dataset
-    iris_instance = train[features].sample(1).values
-    
-    #train lux on neighbourhood equal 20 instances
-    lux = LUX(predict_proba = clf.predict_proba, 
-        neighborhood_size=20,max_depth=2,  
-        node_size_limit = 1, 
-        grow_confidence_threshold = 0 )
-    lux.fit(train[features], train[target], instance_to_explain=iris_instance,class_names=[0,1,2])
-    
-    #see the justification of the instance being classified for a given class
-    lux.justify(np.array(iris_instance))
-"""
 
 
 class LUX(BaseEstimator):
     """
-     Attributes:
-        REPRESENTATIVE_CENTROID (:obj:`str`): A constant representing centroid as the representative strategy.
-        REPRESENTATIVE_NEAREST (:obj:`str`): A constant representing nearest as the representative strategy.
-        CF_REPRESENTATIVE_MEDOID (:obj:`str`): A constant representing medoid as the counterfactual representative strategy.
-        CF_REPRESENTATIVE_NEAREST (:obj:`str`): A constant representing nearest as the counterfactual representative strategy.
-        OS_STRATEGY_SMOTE (:obj:`str`): A constant representing SMOTE as the oversampling strategy.
-        OS_STRATEGY_IMPORTANCE (:obj:`str`): A constant representing importance sampling as the oversampling strategy.
-        OS_STRATEGY_BOTH (:obj:`str`): A constant representing both SMOTE and importance sampling as the oversampling strategy.
+    This class contains functions that implement generation of local rule-based model-agnostic explanations.
+    (np.array(iris_instance))
     """
 
     REPRESENTATIVE_CENTROID = "centroid"
+    "REPRESENTATIVE_CENTROID (:obj:`str`): A constant representing centroid as the representative strategy."
+
     REPRESENTATIVE_NEAREST = "nearest"
+    "REPRESENTATIVE_NEAREST (:obj:`str`): A constant representing nearest as the representative strategy."
 
     CF_REPRESENTATIVE_MEDOID = "medoid"
+    "CF_REPRESENTATIVE_MEDOID (:obj:`str`): A constant representing medoid as the counterfactual representative strategy."
+
     CF_REPRESENTATIVE_NEAREST = "nearest"
+    "CF_REPRESENTATIVE_NEAREST (:obj:`str`): A constant representing nearest as the counterfactual representative strategy."
 
     OS_STRATEGY_SMOTE = 'smote'
+    "OS_STRATEGY_SMOTE (:obj:`str`): A constant representing SMOTE as the oversampling strategy."
+
     OS_STRATEGY_IMPORTANCE = 'importance'
+    "OS_STRATEGY_IMPORTANCE (:obj:`str`): A constant representing importance sampling as the oversampling strategy."
+
     OS_STRATEGY_BOTH = 'both'
+    "OS_STRATEGY_BOTH (:obj:`str`): A constant representing both SMOTE and importance sampling as the oversampling strategy."
 
     def __init__(self, predict_proba, classifier=None, neighborhood_size=0.1, max_depth=None, node_size_limit=1,
                  grow_confidence_threshold=0, min_impurity_decrease=0, min_samples=5, min_generate_samples=0.02,
                  uncertainty_sigma=2, oversampling_strategy='smote'):
-        """
-    Initialize the LUX explainer model.
+        """ Initialize the LUX explainer model.
 
-    :param predict_proba: callable
-        The predict_proba function of the balckbox classifier.
-    :type predict_proba: callable
-    :param classifier: object, optional
-        The underlying classifier. If it is provided the SHAP-based sampling can be used.
-    :param neighborhood_size: float, optional
-        The neighborhood size for generating explanations. Default is 0.1.
-    :type neighborhood_size: float
-    :param max_depth: int, optional
-        The maximum depth of the decision tree. Default is None meaning no limit.
-    :type max_depth: int
-    :param node_size_limit: int, optional
-        The minimum number of samples required to split an internal node. Default is 1.
-    :type node_size_limit: int
-    :param grow_confidence_threshold: float, optional
-        The threshold for growing decision tree nodes. Default is 0.
-    :type grow_confidence_threshold: float
-    :param min_impurity_decrease: float, optional
-        A node will be split if this split induces a decrease of the impurity greater than or equal to this value.
-        Default is 0.
-    :type min_impurity_decrease: float
-    :param min_samples: int, optional
-        The minimum number of samples required to be at a leaf node. Default is 5.
-    :type min_samples: int
-    :param min_generate_samples: float, optional
-        The minimum proportion of the dataset size to generate perturbed instances. This is used by the UncertainSMOTE algotrothm. Default is 0.02.
-    :type min_generate_samples: float
-    :param uncertainty_sigma: float, optional
-        The uncertainty parameter sigma used in the filtering uncertain samples. Every sample that is 2*uncertainty_sigma away from the mean will be removed. Default is 2.
-    :type uncertainty_sigma: float
-    :param oversampling_strategy: str, optional
-        The strategy for oversampling. It can be 'smote', 'importance', or 'both'. Default is 'smote'.
-    :type oversampling_strategy: str
-    """
+        :param predict_proba: callable
+            The predict_proba function of the balckbox classifier.
+        :type predict_proba: callable
+        :param classifier: object, optional
+            The underlying classifier. If it is provided the SHAP-based sampling can be used.
+        :param neighborhood_size: float, optional
+            The neighborhood size for generating explanations. Default is 0.1.
+        :type neighborhood_size: float
+        :param max_depth: int, optional
+            The maximum depth of the decision tree. Default is None meaning no limit.
+        :type max_depth: int
+        :param node_size_limit: int, optional
+            The minimum number of samples required to split an internal node. Default is 1.
+        :type node_size_limit: int
+        :param grow_confidence_threshold: float, optional
+            The threshold for growing decision tree nodes. Default is 0.
+        :type grow_confidence_threshold: float
+        :param min_impurity_decrease: float, optional
+            A node will be split if this split induces a decrease of the impurity greater than or equal to this value.
+            Default is 0.
+        :type min_impurity_decrease: float
+        :param min_samples: int, optional
+            The minimum number of samples required to be at a leaf node. Default is 5.
+        :type min_samples: int
+        :param min_generate_samples: float, optional
+            The minimum proportion of the dataset size to generate perturbed instances. This is used by the UncertainSMOTE algotrothm. Default is 0.02.
+        :type min_generate_samples: float
+        :param uncertainty_sigma: float, optional
+            The uncertainty parameter sigma used in the filtering uncertain samples. Every sample that is 2*uncertainty_sigma away from the mean will be removed. Default is 2.
+        :type uncertainty_sigma: float
+        :param oversampling_strategy: str, optional
+            The strategy for oversampling. It can be 'smote', 'importance', or 'both'. Default is 'smote'.
+        :type oversampling_strategy: str
+        """
         self.neighborhood_size = neighborhood_size
         self.max_depth = max_depth
         self.node_size_limit = node_size_limit
@@ -143,8 +108,7 @@ class LUX(BaseEstimator):
             uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1, representative='centroid',
             density_sampling=False, radius_sampling=False, oversampling=False, categorical=None, prune=True,
             oblique=False, n_jobs=None):
-        """
-        Fit the LUX explainer model.
+        """ Fit the LUX explainer model.
 
         :param X:
             The input data used to train the model.
@@ -200,7 +164,7 @@ class LUX(BaseEstimator):
             A list indicating whether each feature is categorical or not.
         :type categorical: array-like or None
         :param prune: optional
-            Whether to prune branches in decision tree that produces splits which do not change classificaiton result. Default is True.
+            Whether to prune branches in decision tree that produces splits which do not change classification result. Default is True.
         :type prune: bool
         :param oblique: optional
             Whether to use oblique decision rules. Default is False.
@@ -246,8 +210,7 @@ class LUX(BaseEstimator):
                            discount_importance=False, uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1,
                            representative='centroid', density_sampling=False, radius_sampling=False, oversampling=False,
                            categorical=None, prune=False, oblique=False, n_jobs=None):
-        """
-        Fit LUX explainer model for the neighbourhood data defined by the bounding box constructed of several points.
+        """ Fit LUX explainer model for the neighbourhood data defined by the bounding box constructed of several points.
         Usually only one point is provided.
 
         Parameters:
@@ -345,8 +308,7 @@ class LUX(BaseEstimator):
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                          representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
                          oversampling=False, categorical=None, n_jobs=None):
-        """
-        Create a sample for the LUX explainer to be fitted to, based on the provided data.
+        """ Create a sample for the LUX explainer to be fitted to, based on the provided data.
 
         Parameters:
         :param X: Input features.
@@ -581,7 +543,7 @@ class LUX(BaseEstimator):
             return X_train_sample, None
 
     def __oversample_smote(self, X_train_sample, sigma=1, iterations=1, instance_to_explain=None, categorical=None):
-        """
+        """ Generate samples based on their uncertainty.
 
         :param X_train_sample:
         :param sigma:
@@ -605,7 +567,7 @@ class LUX(BaseEstimator):
     def __inverse_sampling(self, X, y, instance_to_explain, nn, sampling_class_label, opposite_neighbourhood,
                            X_importances=None, representative='centroid', categorical=None, metric='minkowski',
                            n_jobs=None):
-        """
+        """ Samples instances from opposite classes making sure every class is well represented in the representative dataset.
 
         :param X:
         :param y:
@@ -664,7 +626,7 @@ class LUX(BaseEstimator):
             return inverse_neighbourhood, None
 
     def predict(self, X, y=None):
-        """
+        """ Predicts the outcome with an explainable model previously fitted
 
         :param X:
         :param y:
@@ -710,7 +672,7 @@ class LUX(BaseEstimator):
             return [self.uid3.tree.justification_tree(i).to_pseudocode(reduce=reduce) for i in XData.get_instances()]
 
     def __get_covered(self, rule, dataset, features, categorical=None):
-        """
+        """ Returns covered instances from a given dataset and a rule
 
         :param rule:
         :param dataset:
@@ -732,7 +694,7 @@ class LUX(BaseEstimator):
 
     def counterfactual(self, instance_to_explain, background, counterfactual_representative='medoid', reduce=True,
                        topn=None, n_jobs=None):
-        """
+        """ Generates a counterfactual for a given instance and background data
 
         :param instance_to_explain:
         :param background:
@@ -796,7 +758,7 @@ class LUX(BaseEstimator):
             return counterfactual_rules[:topn]
 
     def __getshap(self, X_train_sample):
-        """
+        """ Calculates SHAP values
 
         :param X_train_sample:
         :return:
@@ -826,7 +788,8 @@ class LUX(BaseEstimator):
         return shap_values, expected_values
 
     def __importance_sampler(self, X_train_sample, instance_to_explain, num=10):
-        """
+        """ Generates data based on shapley values to minimize number of artificial samples.
+        It generates samples only in the direction pointed by the gradient of SHAP
 
         :param X_train_sample:
         :param instance_to_explain:
@@ -907,7 +870,7 @@ class LUX(BaseEstimator):
         return pd.concat((pd.DataFrame(upsamples, columns=X_train_sample.columns), X_train_sample))
 
     def to_HMR(self):
-        """
+        """ Exports to HMR format that can be executed by the HeaRTDroid rule-engine
 
         :return:
         """

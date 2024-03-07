@@ -36,6 +36,8 @@ extensions = [
     'sphinx.ext.intersphinx',
 ]
 
+autoclass_content = 'both'
+autodoc_default_options = {"members": True, "inherited-members": True}
 intersphinx_disabled_domains = ['std']
 
 # Add any paths that contain templates here, relative to this directory.

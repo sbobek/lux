@@ -1,20 +1,11 @@
 __all__ = ['UncertainSMOTE']
 
 from imblearn.over_sampling._smote.base import BaseSMOTE
-import numpy as np 
-
-import math
-import numbers
+import numpy as np
 import warnings
-from collections import Counter
-
 from scipy import sparse
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
 from sklearn.utils import _safe_indexing, check_array, check_random_state
 from sklearn.metrics import pairwise_distances
-
-from imblearn.utils import Substitution, check_target_type
-from imblearn.utils._docstring import _n_jobs_docstring, _random_state_docstring
 
 
 class UncertainSMOTE(BaseSMOTE):
