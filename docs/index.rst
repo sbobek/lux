@@ -6,7 +6,10 @@
 Welcome to the LUX documentation
 ---------------------------------
 
-
+.. image:: https://raw.githubusercontent.com/sbobek/lux/main/pix/lux-logo.png
+    :width: 240px
+    :align: center
+    :alt: Explanation-Tree
 
 **LUX (Local Universal Rule-Based Explainer)** is an XAI algorithm that produces explanations for any type of machine-learning model.
 It provides local explanations in a form of human-readable (and executable) rules, but also provide counterfactual explanations as well as visualization of the explanations.

@@ -84,7 +84,7 @@ Finally, the explanations can be visulized with the following code:
     Image('tree.png')
 
 
-And as a result you get the following tree:
+And as a result you get the following tree. Note that red dot represents the instance that we were explaining and blue dot represents the counterfactual for this instance.
 
 .. image:: https://raw.githubusercontent.com/sbobek/lux/main/pix/basic-example.png
-    :alt: Explanation Tree
+    :alt: Explanation-Tree
