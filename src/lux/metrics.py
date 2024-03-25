@@ -49,7 +49,7 @@ def stability(rules_and_instances,dataset, features, categorical_indicator):
         jackart = np.zeros((rules.shape[0],rules.shape[0]))
         for i in range(rules.shape[0]):
             for ii in range(rules.shape[0]):
-                jackart[i,ii] = average_jackart(rules.iloc[i,:], rules.iloc[ii,:], dataset, features, categorical_indicator,lux_format=lux_format)
+                jackart[i,ii] = average_jackart(rules.iloc[i,:], rules.iloc[ii,:], dataset, features, categorical_indicator)
         stab = jackart/(instance_similarity+1)
         results_mean.append(np.mean(stab))
         results_std.append(np.std(stab))
@@ -129,18 +129,23 @@ def average_jackart(rule_1, rule_2, dataset, features, categorical_indicator):
                        Each key corresponds to a feature, and the corresponding value is a list of conditions
                        applied to that feature.
         :type rule_1: dict
-        :param rule_2: A dictionary representing the second set of rules. Similar to `rule_1`.
+        :param rule_2:
+           A dictionary representing the second set of rules. Similar to `rule_1`.
         :type rule_2: dict
-        :param dataset: The dataset on which the rules are applied. It should be a pandas DataFrame.
+        :param dataset:
+           The dataset on which the rules are applied. It should be a pandas DataFrame.
         :type dataset: pandas.DataFrame
-        :param features: A list of feature names in the dataset.
+        :param features:
+           A list of feature names in the dataset.
         :type features: list
-        :param categorical_indicator: A list indicating whether each feature is categorical or not.
-                                       Each element of the list corresponds to a feature in `features`, with `True`
-                                       indicating the feature is categorical and `False` indicating it is not.
+        :param categorical_indicator:
+           A list indicating whether each feature is categorical or not.
+           Each element of the list corresponds to a feature in `features`, with `True`
+           indicating the feature is categorical and `False` indicating it is not.
         :type categorical_indicator: list
-        :return: The average Jaccard similarity coefficient between the rules in `rule_1` and `rule_2`.
-                 If there are no rules in either `rule_1` or `rule_2`, the function returns 0.
+        :return:
+            The average Jaccard similarity coefficient between the rules in `rule_1` and `rule_2`.
+            If there are no rules in either `rule_1` or `rule_2`, the function returns 0.
         :rtype: float
         :notes:
 
@@ -170,3 +175,15 @@ def average_jackart(rule_1, rule_2, dataset, features, categorical_indicator):
         return 0
     else:
         return total_jackart / div
+
+def local_counterfactual_representativeness():
+    pass
+
+def global_counterfactual_representativeness():
+    pass
+def global_fidelity():
+    pass
+def local_fidelity():
+    pass
+def importance_fidelity():
+    pass

@@ -33,7 +33,7 @@ pip install lux-explainer
 If you want to use LUX with [JupyterLab](https://jupyter.org/) install it and run:
 
 ```
-pip isntall jupyterlab
+pip installta jupyterlab
 jupyter lab
 ```
 
