@@ -9,7 +9,7 @@ Yt also helps reducing so called Rashomon effect, because the LUX model uses the
 The full example with multiple datasets can be found here: `Notebook <https://github.com/sbobek/lux/blob/main/examples/lux_usage_example_shap.ipynb>`_
 
 Loading the dataset and  building explanations without SHAP support
-====
+------------
 
 For the sake of simplicity we use Wine dataset.
 Below there is a code that loads the dataset and fits RandomForestClassifier to it.
@@ -73,7 +73,7 @@ Below there is a code that fits LUX, and shows the visualization of the explanat
 Whn you look at the scatterplot with decision boundaries marked, you can see that it is reasonable, but can we get better?
 
 .. image:: https://raw.githubusercontent.com/sbobek/lux/main/pix/noshap-wine-scatter.png
-    :alt: Explanation-Tree
+    :alt: Scatterplot
 
 Explanation with SHAP-guided explantions
 -------------
@@ -109,4 +109,4 @@ The explanation tree is shown below. You can see that it is better aligned with 
 When you compare the scatterplot with decision boundaries from the previous one, you will also observe, that the SHAP-guided version is more clear:
 
 .. image:: https://raw.githubusercontent.com/sbobek/lux/main/pix/shap-wine-scatter.png
-    :alt: Explanation-Tree
+    :alt: Scatterplot
