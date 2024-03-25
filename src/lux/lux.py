@@ -14,10 +14,7 @@ import gower
 import numpy as np
 import warnings
 
-from sklearn.linear_model import LinearRegression
-import numdifftools as nd
-
-
+from lux.samplers import ImportanceSampler
 
 
 class LUX(BaseEstimator):
@@ -49,7 +46,7 @@ class LUX(BaseEstimator):
 
     def __init__(self, predict_proba, classifier=None, neighborhood_size=0.1, max_depth=None, node_size_limit=1,
                  grow_confidence_threshold=0, min_impurity_decrease=0, min_samples=5, min_generate_samples=0.02,
-                 uncertainty_sigma=2, oversampling_strategy='smote'):
+                 uncertainty_sigma=2, oversampling_strategy='both'):
         """ Initialize the LUX explainer model.
 
         :param predict_proba: callable
@@ -86,6 +83,7 @@ class LUX(BaseEstimator):
             The strategy for oversampling. It can be 'smote', 'importance', or 'both'. Default is 'smote'.
         :type oversampling_strategy: str
         """
+
         self.neighborhood_size = neighborhood_size
         self.max_depth = max_depth
         self.node_size_limit = node_size_limit
@@ -213,38 +211,58 @@ class LUX(BaseEstimator):
         """ Fit LUX explainer model for the neighbourhood data defined by the bounding box constructed of several points.
         Usually only one point is provided.
 
-        Parameters:
-        :param X: Input features.
+        :param X:
+            Input features.
         :type X: array-like or sparse matrix of shape (n_samples, n_features)
-        :param y: Target values.
-        :param bounding_box_points: Points defining the bounding box.
+        :param y:
+            Target values.
+        :param bounding_box_points:
+            Points defining the bounding box.
         :type bounding_box_points: array-like of shape (n_points, n_dimensions)
-        :param X_importances: Importance matrix for features. Default is None.
-        :param exclude_neighbourhood: Whether to exclude neighborhood points. Default is False.
-        :param use_parity: Whether to use parity. Default is True.
-        :param parity_strategy: Strategy for parity. Default is 'global'.
-        :param inverse_sampling: Whether to use inverse sampling. Default is False.
-        :param class_names: Names of classes. Default is None.
-        :param discount_importance: Whether to discount importance. Default is False.
-        :param uncertain_entropy_evaluator: Evaluator for uncertain entropy. Default is UncertainEntropyEvaluator().
-        :param beta: Beta value for fitting. Default is 1.
-        :param representative: Representative strategy. Default is 'centroid'.
-        :param density_sampling: Whether to use density sampling. Default is False.
-        :param radius_sampling: Whether to use radius sampling. Default is False.
-        :param oversampling: Whether to use oversampling. Default is False.
-        :param categorical: Categorical information. Default is None.
-        :param prune: Whether to prune. Default is False.
-        :param oblique: Whether to use oblique splits. Default is False.
-        :param n_jobs: Number of jobs to run in parallel. Default is None.
+        :param X_importances:
+            Importance matrix for features. Default is None.
+        :param exclude_neighbourhood:
+            Whether to exclude neighborhood points. Default is False.
+        :param use_parity:
+            Whether to use parity. Default is True.
+        :param parity_strategy:
+            Strategy for parity. Default is 'global'.
+        :param inverse_sampling:
+            Whether to use inverse sampling. Default is False.
+        :param class_names:
+            Names of classes. Default is None.
+        :param discount_importance:
+            Whether to discount importance. Default is False.
+        :param uncertain_entropy_evaluator:
+            Evaluator for uncertain entropy. Default is UncertainEntropyEvaluator().
+        :param beta:
+            Beta value for fitting. Default is 1.
+        :param representative:
+            Representative strategy. Default is 'centroid'.
+        :param density_sampling:
+            Whether to use density sampling. Default is False.
+        :param radius_sampling:
+            Whether to use radius sampling. Default is False.
+        :param oversampling:
+            Whether to use oversampling. Default is False.
+        :param categorical:
+            Categorical information. Default is None.
+        :param prune:
+            Whether to prune. Default is False.
+        :param oblique:
+            Whether to use oblique splits. Default is False.
+        :param n_jobs:
+            Number of jobs to run in parallel. Default is None.
 
         Raises:
-        :raises ValueError: If the length of class_names does not match the number of classes in y,
+        :raises ValueError:
+            If the length of class_names does not match the number of classes in y,
                            or if bounding_box_points is not 2D.
         """
         if class_names is None:
             class_names = np.unique(y)
         if class_names is not None and len(class_names) != len(np.unique(y)):
-            raise ValueError('Length of class_names not aligned with number of classess in y')
+            raise ValueError('Length of class_names not aligned with number of classes in y')
 
         if isinstance(boundiong_box_points, (list)):
             boundiong_box_points = np.array(boundiong_box_points)
@@ -310,30 +328,48 @@ class LUX(BaseEstimator):
                          oversampling=False, categorical=None, n_jobs=None):
         """ Create a sample for the LUX explainer to be fitted to, based on the provided data.
 
-        Parameters:
-        :param X: Input features.
+
+        :param X:
+           Input features.
         :type X: array-like or sparse matrix of shape (n_samples, n_features)
-        :param y: Target values.
-        :param bounding_box_points: Points defining the bounding box.
+        :param y:
+           Target values.
+        :param bounding_box_points:
+           Points defining the bounding box.
         :type bounding_box_points: array-like of shape (n_points, n_dimensions)
-        :param X_importances: Importance matrix for features. Default is None.
-        :param exclude_neighbourhood: Whether to exclude neighborhood points. Default is False.
-        :param use_parity: Whether to use parity. Default is True.
-        :param parity_strategy: Strategy for parity. Default is 'global'.
-        :param inverse_sampling: Whether to use inverse sampling. Default is False.
-        :param class_names: Names of classes. Default is None.
-        :param representative: Representative strategy. Default is 'centroid'.
-        :param density_sampling: Whether to use density sampling. Default is False.
-        :param radius_sampling: Whether to use radius sampling. Default is False.
-        :param radius: Radius for radius sampling. Default is None.
-        :param oversampling: Whether to use oversampling. Default is False.
-        :param categorical: Categorical information. Default is None.
-        :param n_jobs: Number of jobs to run in parallel. Default is None.
+        :param X_importances:
+           Importance matrix for features. Default is None.
+        :param exclude_neighbourhood:
+           Whether to exclude neighborhood points. Default is False.
+        :param use_parity:
+           Whether to use parity. Default is True.
+        :param parity_strategy:
+           Strategy for parity. Default is 'global'.
+        :param inverse_sampling:
+           Whether to use inverse sampling. Default is False.
+        :param class_names:
+           Names of classes. Default is None.
+        :param representative:
+           Representative strategy. Default is 'centroid'.
+        :param density_sampling:
+           Whether to use density sampling. Default is False.
+        :param radius_sampling:
+           Whether to use radius sampling. Default is False.
+        :param radius:
+           Radius for radius sampling. Default is None.
+        :param oversampling:
+           Whether to use oversampling. Default is False.
+        :param categorical:
+           Categorical information. Default is None.
+        :param n_jobs:
+           Number of jobs to run in parallel. Default is None.
 
         Returns:
-        :return: X_train_sample: Sampled input features.
+        :return: X_train_sample:
+           Sampled input features.
         :rtype: array-like or sparse matrix of shape (n_samples, n_features)
-        :return: X_train_sample_importances: Sampled importance matrix for features.
+        :return: X_train_sample_importances:
+           Sampled importance matrix for features.
         :rtype: pd.DataFrame or None
         """
         neighbourhoods = []
@@ -347,6 +383,8 @@ class LUX(BaseEstimator):
             metric = 'minkowski'
         else:
             metric = 'precomputed'
+
+        #TODO: if classifier is present, then use it to obtain SHAP, thenm
 
         if use_parity:
             for instance_to_explain in boundiong_box_points:
@@ -519,6 +557,8 @@ class LUX(BaseEstimator):
             if X_importances is not None:
                 X_train_sample_importances = X_importances.loc[~X_train_sample_importances.index]
 
+        # in case of dim reduciton, here is where we need to go back to original feature-space
+        # the return should be made based on the indices from the X_train_sample
         if oversampling:
             if X_importances is not None:
                 warnings.warn("WARNING: X_importances have no effect when oversampling is True.")
@@ -530,10 +570,14 @@ class LUX(BaseEstimator):
                                                          instance_to_explain=instance_to_explain)
             elif self.oversampling_strategy == self.OS_STRATEGY_IMPORTANCE:
                 instance_to_explain = boundiong_box_points[0]
-                X_train_sample = self.__importance_sampler(X_train_sample, instance_to_explain)
+                isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
+                                         indstance2explain=instance_to_explain,min_generate_samples=self.min_generate_samples)
+                X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
                 instance_to_explain = boundiong_box_points[0]
-                X_train_sample = self.__importance_sampler(X_train_sample, instance_to_explain)
+                isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
+                                         indstance2explain=instance_to_explain,min_generate_samples=self.min_generate_samples)
+                X_train_sample = isam.fit_transform(X_train_sample)
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
 
@@ -757,118 +801,6 @@ class LUX(BaseEstimator):
         else:
             return counterfactual_rules[:topn]
 
-    def __getshap(self, X_train_sample):
-        """ Calculates SHAP values
-
-        :param X_train_sample:
-        :return:
-        """
-        # calculate shap values
-        try:
-            explainer = shap.Explainer(self.classifier, X_train_sample)
-            if hasattr(explainer, "shap_values"):
-                shap_values = explainer.shap_values(X_train_sample, check_additivity=False)
-            else:
-                shap_values = explainer(X_train_sample).values
-                shap_values = [sv for sv in np.moveaxis(shap_values, 2, 0)]
-            if hasattr(explainer, "expected_value"):
-                expected_values = explainer.expected_value
-            else:
-                expected_values = [np.mean(v) for v in shap_values]
-        except TypeError:
-            explainer = shap.Explainer(self.predict_proba, X_train_sample)
-            shap_values = explainer(X_train_sample).values
-            shap_values = [sv for sv in np.moveaxis(shap_values, 2, 0)]
-            expected_values = [np.mean(v) for v in shap_values]
-
-        if type(shap_values) is not list:
-            shap_values = [-shap_values, shap_values]
-            expected_values = [np.mean(v) for v in shap_values]
-
-        return shap_values, expected_values
-
-    def __importance_sampler(self, X_train_sample, instance_to_explain, num=10):
-        """ Generates data based on shapley values to minimize number of artificial samples.
-        It generates samples only in the direction pointed by the gradient of SHAP
-
-        :param X_train_sample:
-        :param instance_to_explain:
-        :param num:
-        :return:
-        """
-        shap_values, _ = self.__getshap(X_train_sample)
-        abs_shap = np.array([abs(sv).mean(1) for sv in shap_values])
-        indexer = self.classifier.predict(X_train_sample)
-        shapclass = []
-
-        for i in range(0, len(X_train_sample)):
-            # we move sample towards the expected value, which should be decision boundary in balanced, binary case
-            best_index = indexer[i]
-            shapclass.append([shap_values[best_index][i, :]])
-        shapclass = np.concatenate(shapclass)
-        shapcols = [c + '_shap' for c in X_train_sample.columns]
-        cols = [c for c in X_train_sample.columns]
-
-        shapdf = pd.DataFrame(shapclass, columns=shapcols)
-
-        fulldf = pd.concat([X_train_sample.reset_index(drop=True), shapdf.reset_index(drop=True)], axis=1)
-        fulldf.index = X_train_sample.index
-        class_of_i2e = self.classifier.predict(instance_to_explain.reshape(1, -1))
-        predictions = self.classifier.predict(fulldf[cols])
-        # fulldf=fulldf[predictions==class_of_i2e]
-
-        gradsf = {}
-        gradst = []
-
-        for cl in np.unique(indexer):
-            gradcl = []
-            gradstcl = []
-            for dim in range(0, X_train_sample.shape[1]):
-                mask = indexer == cl
-                xs = X_train_sample.iloc[mask, dim]
-                ys = shapclass[mask, dim]
-                # plt.plot(xs,ys)
-                # plt.show()
-                grads = np.gradient(ys, xs)
-                gradstcl.append(grads)
-                svrr = LinearRegression()  # SVR()
-                svrr.fit(xs.values.reshape(-1, 1), ys)
-
-                F = lambda x, svr=svrr: svr.predict(x.reshape(1, -1))
-                gradient = nd.Gradient(F)
-
-                gradcl.append(gradient)
-            gradsf[cl] = gradcl
-            gradst.append(gradstcl)
-
-        alpha = np.ones(len(cols)) * (shapclass.max() - shapclass.min())
-
-        def perturb(x, num, alpha, gradients, cols, shapcols):
-            newx = []
-            last = x[cols].values
-            newx.append(last)
-            cl = self.classifier.predict(last.reshape(1, -1))[0]
-
-            grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
-            for _ in range(0, num):
-                last = last - alpha * grad
-                if cl != self.classifier.predict(last.reshape(1, -1))[0]:
-                    break
-                newx.append(last)
-            return np.array(newx)
-
-        if fulldf.shape[0] > 0:
-            upsamples = np.concatenate(
-                fulldf.sample(int(self.min_generate_samples * len(fulldf))).apply(perturb, args=(
-                num, alpha, gradsf, cols, shapcols),
-                                                                                  axis=1).values)
-            upsamples = upsamples[
-                        np.random.choice(upsamples.shape[0], max(len(fulldf), upsamples.shape[0]), replace=False), :]
-        else:
-            upsamples = fulldf
-
-        return pd.concat((pd.DataFrame(upsamples, columns=X_train_sample.columns), X_train_sample))
-
     def to_HMR(self):
         """ Exports to HMR format that can be executed by the HeaRTDroid rule-engine
 
@@ -879,12 +811,19 @@ class LUX(BaseEstimator):
     @staticmethod
     def generate_uarff(X, y, class_names, X_importances=None, categorical=None):
         """ Generates uncertain ARFF file
-            :param X: DataFrame containing dataset for training
-            :param y: target values returned by predict_proba function
-            :param class_names: names for the classes to be used in uID3
-            :param X_importances: confidence for each reading obtained. This matrix should be normalized to the range [0;1].
-            :param categorical: array indicating which parameters should be treated as categorical
-            :return: String representing the ARFF file
+
+            :param X:
+                DataFrame containing dataset for training
+            :param y:
+                target values returned by predict_proba function
+            :param class_names:
+                names for the classes to be used in uID3
+            :param X_importances:
+                confidence for each reading obtained. This matrix should be normalized to the range [0;1].
+            :param categorical:
+                array indicating which parameters should be treated as categorical
+            :return:
+                String representing the ARFF file
 
         """
         if X_importances is not None:

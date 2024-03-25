@@ -11,6 +11,8 @@ Explanation interface
     :toctree: generated/
 
     lux.lux.LUX
+    lux.samplers.UncertainSMOTE
+    lux.samplers.ImportanceSampler
 
 .. _tree_api:
 

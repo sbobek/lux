@@ -156,14 +156,18 @@ class UncertainSMOTE(BaseSMOTE):
     def _in_danger_noise(self, predict_proba, samples, target_class, y, kind="danger"):
         """
         Estimate if a set of sample are in danger or noise.
-        :param predict_proba: function returning probability estimates for samples
-        :param samples: {array-like, sparse matrix} of shape (n_samples, n_features). The samples to check if either they are in danger or not.
-        :param target_class: nt or str. The target corresponding class being over-sampled.
-        :param y: array-like of shape (n_samples,). The true label in order to check the neighbour labels.
+        :param predict_proba:
+           function returning probability estimates for samples
+        :param samples: {array-like, sparse matrix} of shape (n_samples, n_features).
+           The samples to check if either they are in danger or not.
+        :param target_class: nt or str.
+           The target corresponding class being over-sampled.
+        :param y: array-like of shape (n_samples,).
+           The true label in order to check the neighbour labels.
         :param kind: {'danger', 'noise'}, default='danger'
-        The type of classification to use. Can be either:
-        - If 'danger', check if samples are in danger,
-        - If 'noise', check if samples are noise.
+            The type of classification to use. Can be either:
+            - If 'danger', check if samples are in danger,
+            - If 'noise', check if samples are noise.
 
         :return: ndarray of shape (n_samples,). A boolean array where True refer to samples in danger or noise.
         """
