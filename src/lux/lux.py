@@ -384,7 +384,7 @@ class LUX(BaseEstimator):
         else:
             metric = 'precomputed'
 
-        #TODO: if classifier is present, then use it to obtain SHAP, thenm
+        # TODO: if classifier is present, then use it to obtain SHAP, thenm
 
         if use_parity:
             for instance_to_explain in boundiong_box_points:
@@ -571,15 +571,21 @@ class LUX(BaseEstimator):
             elif self.oversampling_strategy == self.OS_STRATEGY_IMPORTANCE:
                 instance_to_explain = boundiong_box_points[0]
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
-                                         indstance2explain=instance_to_explain,min_generate_samples=self.min_generate_samples)
+                                         indstance2explain=instance_to_explain,
+                                         min_generate_samples=self.min_generate_samples)
                 X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
                 instance_to_explain = boundiong_box_points[0]
-                isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
-                                         indstance2explain=instance_to_explain,min_generate_samples=self.min_generate_samples)
-                X_train_sample = isam.fit_transform(X_train_sample)
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
+                isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
+                                         indstance2explain=instance_to_explain,
+                                         min_generate_samples=self.min_generate_samples)
+                X_train_sample = isam.fit_transform(X_train_sample)
+
+            cols = X_train_sample.columns
+            X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(0.3 * X_train_sample.shape[0]), X_train_sample.shape[1])) * instance_to_explain))
+            X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
 
         if X_importances is not None:
             return X_train_sample, X_train_sample_importances
@@ -800,6 +806,14 @@ class LUX(BaseEstimator):
             return counterfactual_rules
         else:
             return counterfactual_rules[:topn]
+
+    def visualize(self, data, target_column_name='class',instance2explain=None, counterfactual=None, filename='tree.dot'):
+        cfdf = pd.DataFrame(counterfactual['counterfactual']).T
+        cfdf[target_column_name] = np.argmax(self.predict_proba(cfdf.values.reshape(1, -1))[0])
+        i2edf = pd.DataFrame(instance2explain, columns=self.attributes_names)
+        i2edf[target_column_name] = np.argmax(self.predict_proba(i2edf.values.reshape(1, -1))[0])
+        self.uid3.tree.save_dot(filename, fmt='.2f', visual=True, background_data=data, instance2explain=i2edf,
+                                counterfactual=cfdf)
 
     def to_HMR(self):
         """ Exports to HMR format that can be executed by the HeaRTDroid rule-engine

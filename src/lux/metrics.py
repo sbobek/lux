@@ -65,7 +65,7 @@ def stability(rules_and_instances,dataset, features, categorical_indicator):
     return (np.mean(results_mean), np.mean(results_std),np.mean(feature_jackart),np.std(feature_jackart)) #large stability, low variance is desired
 
 
-def coverage(rule, dataset, features, categorical_indicator, prediction,
+def local_fidelity(rule, dataset, features, categorical_indicator, prediction,
                        class_label='class', average='micro'):
     """
     Calculate coverage and various evaluation metrics for a given rule applied to a dataset.
@@ -176,14 +176,3 @@ def average_jackart(rule_1, rule_2, dataset, features, categorical_indicator):
     else:
         return total_jackart / div
 
-def local_counterfactual_representativeness():
-    pass
-
-def global_counterfactual_representativeness():
-    pass
-def global_fidelity():
-    pass
-def local_fidelity():
-    pass
-def importance_fidelity():
-    pass

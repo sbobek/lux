@@ -84,37 +84,35 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
 
         fulldf = pd.concat([X_train_sample.reset_index(drop=True), shapdf.reset_index(drop=True)], axis=1)
         fulldf.index = X_train_sample.index
-        #class_of_i2e = self.classifier.predict(instance_to_explain.reshape(1, -1))
-        #predictions = self.classifier.predict(fulldf[cols])
-        # fulldf=fulldf[predictions==class_of_i2e]
+        fulldf_all = pd.concat([X_train_sample.reset_index(drop=True), shapdf.reset_index(drop=True)], axis=1)
+        fulldf_all.index = X_train_sample.index
+        class_of_i2e = self.classifier.predict(instance_to_explain.reshape(1, -1))
+        predictions = self.classifier.predict(fulldf_all[cols])
+        fulldf = fulldf_all[predictions == class_of_i2e]
+        if len(fulldf) == 0:
+            fulldf = fulldf_all[predictions != class_of_i2e]
 
         gradsf = {}
-        gradst = []
 
         for cl in np.unique(indexer):
             gradcl = []
-            gradstcl = []
             for dim in range(0, X_train_sample.shape[1]):
                 mask = indexer == cl
                 xs = X_train_sample.iloc[mask, dim]
                 ys = shapclass[mask, dim]
-                # plt.plot(xs,ys)
-                # plt.show()
-                grads = np.gradient(ys, xs)
-                gradstcl.append(grads)
-                svrr = LinearRegression()  # SVR()
-                svrr.fit(xs.values.reshape(-1, 1), ys)
+                svr = LinearRegression()  # SVR()
+                svr.fit(xs.values.reshape(-1, 1), ys)
 
-                F = lambda x, svr=svrr: svr.predict(x.reshape(1, -1))
+                F = lambda x, svr=svr: svr.predict(x.reshape(1, -1))
                 gradient = nd.Gradient(F)
 
                 gradcl.append(gradient)
             gradsf[cl] = gradcl
-            gradst.append(gradstcl)
 
-        alpha = np.ones(len(cols)) * (shapclass.max() - shapclass.min())
 
-        def perturb(x, num, alpha, gradients, cols):
+        alpha = abs(shapclass).mean()
+
+        def perturb(x, num, alpha, gradients, cols, shapcols):
             newx = []
             last = x[cols].values
             newx.append(last)
@@ -123,9 +121,11 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
             for _ in range(0, num):
                 last = last - alpha * grad
+                cl = self.classifier.predict(last.reshape(1, -1))[0]
+                grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
+                newx.append(last)
                 if cl != self.classifier.predict(last.reshape(1, -1))[0]:
                     break
-                newx.append(last)
             return np.array(newx)
 
         if fulldf.shape[0] > 0:

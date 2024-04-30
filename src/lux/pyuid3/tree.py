@@ -159,10 +159,15 @@ class Tree:
 
                 value = Value("any", 1.0)
 
+                found = False
                 for c in rule:
                     if c.att_name == att.get_name():
+                        found=True
                         value = c.value
                         result +=  f"{att.get_name()} {value.get_name().replace('>=',' gte ').replace('<',' lt ')}, "
+
+                if not found:
+                    result += f"{att.get_name()} eq any, "
 
             result = f"{result.strip()[:-1]}] ==> ["
 
