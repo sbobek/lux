@@ -2,7 +2,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
 import pandas as pd
 
-from lux.UncertainSMOTE import UncertainSMOTE
+from lux.samplers import UncertainSMOTE
 from lux.pyuid3.data import Data
 from lux.pyuid3.entropy_evaluator import UncertainEntropyEvaluator
 from lux.pyuid3.uid3 import UId3

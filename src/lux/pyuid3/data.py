@@ -14,6 +14,7 @@ from typing import List, Set, Dict
 from typing import Tuple
 from collections import OrderedDict
 
+from .parse_exception import ParseException
 from .reading import Reading
 from .instance import Instance
 from .att_stats import AttStats
@@ -26,6 +27,17 @@ class Data:
     REAL_DOMAIN = '@REAL'
 
     def __init__(self, name: str = None, attributes: List[Attribute] = None, instances: List[Instance] = None):
+        """ Initialize a Data object.
+
+                Parameters:
+                -----------
+                :param name: str, optional
+                    The name of the dataset.
+                :param attributes: List[Attribute], optional
+                    List of attribute objects defining the dataset's attributes.
+                :param instances: List[Instance], optional
+                    List of instance objects containing the dataset's instances.
+        """
         self.name = name
         self.instances = instances
         self.attributes = OrderedDict()
@@ -40,9 +52,33 @@ class Data:
         self.__df__=None
         
     def __len__(self):
+        """
+        Returns the number of instances in the dataset.
+
+        Returns:
+        --------
+        :return: int
+            The number of instances in the dataset.
+        """
         return len(self.instances)
 
     def filter_nominal_attribute_value(self, at: Attribute, value: str, copy : bool =False) -> 'Data':
+        """ Filter the dataset based on the given nominal attribute value.
+
+        Parameters:
+        -----------
+        :param at: Attribute
+            The attribute to filter.
+        :param value: str
+            The value to filter.
+        :param copy: bool, optional
+            Whether to create a copy of the filtered dataset. Defaults to False.
+
+        Returns:
+        --------
+        :return: Data
+            The filtered dataset.
+        """
         new_instances = []
         new_attributes = self.get_attributes().copy()
 
@@ -59,6 +95,24 @@ class Data:
         return Data(self.name, new_attributes, new_instances)
 
     def filter_numeric_attribute_value(self, at: Attribute, value: str, copy : bool = False )-> Tuple['Data','Data']:
+        """ Filter the dataset based on the given numeric attribute value.
+
+       Parameters:
+       -----------
+       :param at: Attribute
+           The attribute to filter.
+       :param value: str
+           The value to filter.
+       :param copy: bool, optional
+           Whether to create a copy of the filtered dataset. Defaults to False.
+
+       Returns:
+       --------
+       :return: Tuple[Data, Data]
+           A tuple containing two filtered datasets:
+           - The first dataset contains instances where the attribute value is less than the given value.
+           - The second dataset contains instances where the attribute value is greater than or equal to the given value.
+       """
         new_instances_less_than = []
         new_instances_greater_equal = []
         new_attributes_lt = self.get_attributes().copy()
@@ -80,6 +134,24 @@ class Data:
         return (Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal))
     
     def filter_numeric_attribute_value_expr(self, at: Attribute, expr: str, copy : bool = False )-> Tuple['Data','Data']:
+        """ Filter the dataset based on the given expression involving a numeric attribute value.
+
+        Parameters:
+        -----------
+        :param at: Attribute
+            The attribute to filter.
+        :param expr: str
+            The expression to evaluate. It can involve comparisons and arithmetic operations with the attribute value.
+        :param copy: bool, optional
+            Whether to create a copy of the filtered dataset. Defaults to False.
+
+        Returns:
+        --------
+        :return: Tuple[Data, Data]
+            A tuple containing two filtered datasets:
+            - The first dataset contains instances where the attribute value satisfies the expression.
+            - The second dataset contains instances where the attribute value does not satisfy the expression.
+        """
         new_instances_less_than = []
         new_instances_greater_equal = []
         new_attributes_lt = self.get_attributes().copy()
@@ -107,9 +179,29 @@ class Data:
     
 
     def get_attribute_of_name(self, att_name: str) -> Attribute:
+        """ Get the attribute object corresponding to the given attribute name.
+
+        Parameters:
+        -----------
+        :param att_name: str
+            The name of the attribute to retrieve.
+
+        Returns:
+        --------
+        :return: Attribute
+            The attribute object corresponding to the given attribute name.
+            Returns None if the attribute name is not found in the dataset.
+        """
         return self.attributes.get(att_name, None)
 
     def to_arff_most_probable(self) -> str:
+        """ Convert the dataset to ARFF format using the most probable values for each attribute.
+
+        Returns:
+        --------
+        :return: str
+            The dataset in ARFF format using the most probable values for each attribute.
+        """
         result = '@relation ' + self.name + '\n'
         for at in self.attributes:
             result += at.to_arff() + '\n'
@@ -125,6 +217,19 @@ class Data:
         return result
 
     def to_arff_skip_instance(self, epsilon: float) -> str:
+        """ Convert the dataset to ARFF format skipping instances where the confidence of the most probable value
+        is less than or equal to the given epsilon.
+
+        Parameters:
+        -----------
+        :param epsilon: float
+            The threshold confidence value. Instances with a confidence value less than or equal to epsilon will be skipped.
+
+        Returns:
+        --------
+        :return: str
+            The dataset in ARFF format skipping instances where the confidence of the most probable value is less than or equal to epsilon.
+        """
         result = '@relation ' + self.name + '\n'
         for at in self.attributes:
             result += at.to_arff() + '\n'
@@ -145,6 +250,18 @@ class Data:
         return result
 
     def to_arff_skip_value(self, epsilon: float) -> str:
+        """ Convert the dataset to ARFF format, replacing attribute values with '?' if their confidence is less than or equal to the given epsilon.
+
+        Parameters:
+        -----------
+        :param epsilon: float
+            The threshold confidence value. Attribute values with a confidence value less than or equal to epsilon will be replaced with '?'.
+
+        Returns:
+        --------
+        :return: str
+            The dataset in ARFF format with attribute values replaced with '?' if their confidence is less than or equal to epsilon.
+        """
         result = '@relation ' + self.name + '\n'
         for at in self.attributes:
             result += at.to_arff() + '\n'
@@ -165,6 +282,14 @@ class Data:
         return result
 
     def to_uarff(self) -> str:
+        """
+       Convert the dataset to UARFF (Uncertain ARFF) format.
+
+       Returns:
+       --------
+       :return: str
+           The dataset in UARFF format.
+       """
         result = '@relation ' + self.name + '\n'
         for at in self.attributes:
             result += at.to_arff() + '\n'
@@ -175,8 +300,20 @@ class Data:
             result += i.to_arff() + '\n'
 
         return result
-    
+
     def to_dataframe(self,most_probable=True) -> pd.DataFrame:
+        """ Convert the dataset to a pandas DataFrame.
+
+        Parameters:
+        -----------
+        :param most_probable: bool, optional (default=True)
+            Whether to use the most probable values for each attribute. In current version there is no other option than True.
+
+        Returns:
+        --------
+        :return: pd.DataFrame
+            A pandas DataFrame representing the dataset.
+        """
         if self.__df__ is not None:
             return self.__df__
         columns = [at.get_name() for at in self.get_attributes()]
@@ -184,28 +321,40 @@ class Data:
         for i in self.instances:
             row =[]
             for att in columns:
-                ar = i.get_reading_for_attribute(att) 
+                ar = i.get_reading_for_attribute(att)
                 if self.get_attribute_of_name(att).get_type() == Attribute.TYPE_NOMINAL:
                     single_value = int(float(ar.get_most_probable().get_name()))
                 elif self.get_attribute_of_name(att).get_type() == Attribute.TYPE_NUMERICAL:
                     single_value = float(ar.get_most_probable().get_name())
                 row.append(single_value)
             values.append(row)
-    
+
         self.__df__ = pd.DataFrame(values, columns=columns)
         return self.__df__
-    
+
     def to_dataframe_importances(self, average_absolute=False):
+        """ Convert the dataset's importances to a pandas DataFrame.
+
+        Parameters:
+        -----------
+        :param average_absolute: bool, optional (default=False)
+            Whether to calculate the average absolute importances.
+
+        Returns:
+        --------
+        :return: pd.DataFrame
+            A pandas DataFrame representing the importances of each attribute.
+        """
         columns = [at.get_name() for at in self.get_attributes() if at.get_name() != self.class_attribute_name]
         values = []
         for i in self.instances:
             row =[]
             for att in columns:
-                ar = i.get_reading_for_attribute(att) 
+                ar = i.get_reading_for_attribute(att)
                 importances = list(ar.get_most_probable().get_importances().values())
                 row.append(importances)
             values.append(row)
-        
+
         result = np.array([sv for sv in np.moveaxis(np.array(values), 2,0)])
         if average_absolute:
             return np.abs(result).mean(1).mean(0)
@@ -213,21 +362,47 @@ class Data:
             return result
 
     def calculate_statistics(self, att: Attribute) -> AttStats:
+        """ Calculate statistics for a specific attribute in the dataset.
+
+        Parameters:
+        -----------
+        :param att: Attribute
+            The attribute for which statistics are to be calculated.
+
+        Returns:
+        --------
+        :return: AttStats
+            An object containing statistics for the specified attribute.
+        """
         return AttStats.calculate_statistics(att, self)
-    
+
     def set_importances(self, importances: pd.DataFrame, expected_values: Dict) -> 'Data':
+        """ Set importances for each attribute based on the provided DataFrame of importances and expected values.
+
+        Parameters:
+        -----------
+        :param importances: pd.DataFrame
+            DataFrame containing importances for each attribute.
+        :param expected_values: Dict
+            Dictionary containing expected values.
+
+        Returns:
+        --------
+        :return: Data
+            A new Data object with updated importances.
+        """
         new_instances = []
         if type(importances.columns) is pd.MultiIndex:
             classes = list(importances.columns.get_level_values(0).unique())
         else:
             importances=pd.DataFrame({'__all__':importances})
             warnings.warn("WARNING: SHAP values passed for one class only. This may lead to unexpected behaviour.")
-         
+
         self.expected_values = expected_values
         for (_,r),instance in zip(importances.iterrows(), self.instances):
             new_readings = instance.get_readings().copy()
             for att in r.index.get_level_values(1).unique():
-                reading = instance.get_reading_for_attribute(att) 
+                reading = instance.get_reading_for_attribute(att)
                 importance_dict = {}
                 for cl in classes:
                     importance_dict[cl] = r[cl][att]
@@ -237,14 +412,30 @@ class Data:
                 new_instance = Instance(new_readings)
                 new_instance.add_reading(altered_reading)
             new_instances.append(new_instance)
-            
+
         return Data(self.name, self.get_attributes().copy(), new_instances)
-    
+
     def reduce_importance_for_attribute(self, att: Attribute, discount_factor: float, for_class : str = None) -> 'Data':
+        """ Reduce the importance of a specific attribute by a given discount factor.
+
+        Parameters:
+        -----------
+        :param att: Attribute
+            The attribute for which importance needs to be reduced.
+        :param discount_factor: float
+            The discount factor by which to reduce the importance.
+        :param for_class: str, optional (default=None)
+            If provided, reduce the importance only for the specified class.
+
+        Returns:
+        --------
+        :return: Data
+            A new Data object with reduced importance for the specified attribute.
+        """
         new_instances = []
         for i in self.instances:
             new_readings = i.get_readings().copy()
-            reading = i.get_reading_for_attribute(att.get_name()) 
+            reading = i.get_reading_for_attribute(att.get_name())
             if for_class is None:
                 discounted_confidence_values = [Value(v.get_name(),v.get_confidence(), {key: value * (1-discount_factor) for key, value in v.get_importances().items()}) for v in reading.values]
             else:
@@ -254,7 +445,7 @@ class Data:
             new_instance = Instance(new_readings)
             new_instance.add_reading(discounted_reading)
             new_instances.append(new_instance)
-            
+
         return Data(self.name, self.get_attributes().copy(), new_instances)
 
     @staticmethod
@@ -333,7 +524,7 @@ class Data:
         name = filename.split('/')[-1].split('.csv')[0]
         out = Data.__read_ucsv_from_dataframe(df, name)
         return out
-    
+
     @staticmethod
     def parse_dataframe(df: pd.DataFrame,name='uarff_data',categorical:List[bool]=None) -> 'Data':
         out = Data.__read_ucsv_from_dataframe(df, name,categorical)
@@ -347,7 +538,7 @@ class Data:
             class_att = temp_data.get_attribute_of_name(class_att_name)
         elif isinstance(class_id, int):
             class_att_name = list(temp_data.attributes.keys())[class_id]
-            class_att = temp_data.attributes[class_att]
+            class_att = temp_data.get_attribute_of_name[class_att_name]
 
         del temp_data.attributes[class_att_name]
         temp_data.attributes.append((class_att_name,class_att))
@@ -355,7 +546,7 @@ class Data:
         for i in temp_data.instances:
             class_label = i.get_reading_for_attribute(class_att.get_name())
             readings = i.get_readings()
-            del readings[class_index]
+            del readings[class_id]
             readings.append(class_label)
             i.set_readings(readings)
         return temp_data
@@ -409,7 +600,7 @@ class Data:
         for value in untrimmed_domain:
             if value.strip() == Data.REAL_DOMAIN:
                 type = Attribute.TYPE_NUMERICAL
-                break 
+                break
             domain.add(value.replace("'", '').strip())
         return Attribute(name, domain, type)
 

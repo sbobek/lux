@@ -16,24 +16,82 @@ import numdifftools as nd
 
 
 class ImportanceSampler(TransformerMixin, BaseEstimator):
+
     def __init__(self, classifier, predict_proba, indstance2explain,min_generate_samples):
+        """
+        A transformer class for generating synthetic data using importance sampling based on SHAP values.
+
+        Parameters:
+        -----------
+        :param classifier: object
+            The classifier used for generating SHAP values.
+        :type classifier: object
+        :param predict_proba: callable
+            A function returning probability estimates for samples.
+        :type predict_proba: callable
+        :param instance2explain: array-like of shape (n_features,)
+            An instance to be used for explaining the synthetic samples creation process.
+        :type instance2explain: array-like of shape (n_features,)
+        :param min_generate_samples: int
+            The minimum number of synthetic samples to generate.
+        :type min_generate_samples: int
+
+        """
         self.classifier = classifier
         self.predict_proba = predict_proba
         self.instance2explain = indstance2explain
         self.min_generate_samples=min_generate_samples
 
     def fit(self, X,y=None):
+        """ Fits the transformer by calculating SHAP values for the given dataset.
+
+            Parameters:
+            -----------
+            :param X: array-like of shape (n_samples, n_features)
+                The input data for which SHAP values are to be calculated.
+            :param y: array-like of shape (n_samples,), default=None
+                The target values. This parameter is not used and is only present to adhere to the scikit-learn transformer interface.
+
+            Returns:
+            --------
+            self: object
+                The fitted transformer instance.
+        """
         self.shap_values =  self.__getshap(X)
         return self
 
     def transform(self,X,y=None):
+        """ Transforms the dataset by generating synthetic samples based on SHAP values.
+
+        Parameters:
+        -----------
+        :param X: array-like of shape (n_samples, n_features)
+            The input data to be transformed.
+        :param y: array-like of shape (n_samples,), default=None
+            The target values. This parameter is not used and is only present to adhere to the scikit-learn transformer interface.
+
+        Returns:
+        --------
+        transformed_data: array-like of shape (n_samples_new, n_features)
+            The transformed dataset containing the original samples along with the generated synthetic samples.
+        """
         return self.__importance_sampler(X,self.instance_to_explain, num=10)
 
     def __getshap(self, X_train_sample):
-        """ Calculates SHAP values
+        """ Calculates SHAP values for the given dataset.
 
-        :param X_train_sample:
-        :return:
+            Parameters:
+            -----------
+            :param X_train_sample: array-like of shape (n_samples, n_features)
+                The input data for which SHAP values are to be calculated.
+
+            Returns:
+            --------
+            shap_values: list or array-like
+                The SHAP values calculated for each feature and sample in the dataset.
+            expected_values: list or array-like
+                The expected values of the SHAP values calculated for each feature and sample in the dataset.
+
         """
         # calculate shap values
         try:
@@ -101,10 +159,10 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                 mask = indexer == cl
                 xs = X_train_sample.iloc[mask, dim]
                 ys = shapclass[mask, dim]
-                svr = LinearRegression()  # SVR()
-                svr.fit(xs.values.reshape(-1, 1), ys)
+                svrc = LinearRegression()  # SVR()
+                svrc.fit(xs.values.reshape(-1, 1), ys)
 
-                F = lambda x, svr=svr: svr.predict(x.reshape(1, -1))
+                F = lambda x, svr=svrc: svr.predict(x.reshape(1, -1))
                 gradient = nd.Gradient(F)
 
                 gradcl.append(gradient)
