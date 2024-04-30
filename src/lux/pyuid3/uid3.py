@@ -97,8 +97,8 @@ class UId3(BaseEstimator):
 
 
             #find max and rescale:
-            #maxshap = max([np.max(np.abs(sv)) for sv in shap_values]) #ADD
-            #shap_values = [sv/maxshap for sv in shap_values] #ADD
+            maxshap = max([np.max(np.abs(sv)) for sv in shap_values]) #ADD
+            shap_values = [sv/maxshap for sv in shap_values] #ADD
             
             shap_dict={}
             expected_dict={}
@@ -435,13 +435,13 @@ class UId3(BaseEstimator):
                                                                            (stat_for_gte_value)*entropyEvaluator.calculate_entropy(subdata_greater_equal) ))
 
 
-            pure_single_temp_gain_shap = avg_abs_importance
+            pure_single_temp_gain_shap = avg_abs_importance*globalEntropy #ADD
 
             if pure_single_temp_gain*pure_single_temp_gain_shap == 0:
                 #to prevent from 0-division
                 single_temp_gain=0
             else:
-                single_temp_gain =pure_single_temp_gain_shap*pure_single_temp_gain#((1+beta**2)*pure_single_temp_gain_shap*pure_single_temp_gain)/((beta**2*pure_single_temp_gain_shap)+pure_single_temp_gain)*conf_for_value
+                single_temp_gain =(beta*pure_single_temp_gain_shap*pure_single_temp_gain)/(1+beta)#((1+beta**2)*pure_single_temp_gain_shap*pure_single_temp_gain)/((beta**2*pure_single_temp_gain_shap)+pure_single_temp_gain)*conf_for_value
         else:
             pure_single_temp_gain = (globalEntropy - (stat_for_lt_value*entropyEvaluator.calculate_entropy(subdata_less_than)+
                                                                                    (stat_for_gte_value)*entropyEvaluator.calculate_entropy(subdata_greater_equal) ))

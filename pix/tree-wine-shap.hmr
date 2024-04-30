@@ -1,0 +1,48 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+xtype [
+ name: color_intensity, 
+base:numeric,
+domain : [-100000 to 100000]].
+xtype [
+ name: class, 
+base:symbolic,
+ domain : [0,1,2]].
+xtype [
+ name: flavanoids, 
+base:numeric,
+domain : [-100000 to 100000]].
+xtype [
+ name: proline, 
+base:numeric,
+domain : [-100000 to 100000]].
+
+%%%%%%%%%%%%%%%%%%%%%%%%% ATTRIBUTES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
+xattr [ name: color_intensity,
+ type:color_intensity,
+ class:simple,
+ comm:out ].
+xattr [ name: class,
+ type:class,
+ class:simple,
+ comm:out ].
+xattr [ name: flavanoids,
+ type:flavanoids,
+ class:simple,
+ comm:out ].
+xattr [ name: proline,
+ type:proline,
+ class:simple,
+ comm:out ].
+
+%%%%%%%%%%%%%%%%%%%%%%%% TABLE SCHEMAS DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%
+ xschm tree : [color_intensity,flavanoids,proline]==> [class].
+xrule tree/0:
+[color_intensity  lt 3.424999952316284, flavanoids  lt 1.4900000095367432, proline eq any] ==> [class set 1]. # 1.0
+xrule tree/1:
+[color_intensity  gte 3.424999952316284, flavanoids  lt 1.4900000095367432, proline eq any] ==> [class set 2]. # 1.0
+xrule tree/2:
+[color_intensity eq any, flavanoids  gte 1.4900000095367432, proline  lt 655.0] ==> [class set 1]. # 1.0
+xrule tree/3:
+[color_intensity eq any, flavanoids  gte 1.4900000095367432, proline  gte 655.0] ==> [class set 0]. # 1.0
+
