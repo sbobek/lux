@@ -35,6 +35,7 @@ To install from source code::
 
    Basic Usage examples <basic_examples>
    SHAP-guided explanation generation examples <shap_examples>
+   Visualization examples <visualization_examples>
 
 
 .. toctree::
