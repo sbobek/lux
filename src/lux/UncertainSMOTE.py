@@ -24,19 +24,51 @@ class UncertainSMOTE(BaseSMOTE):
         instance_to_explain=None, 
         kind="borderline-1",
     ):
+        """An implementation of Synthetic Minority Over-sampling Technique (SMOTE) with handling of uncertain samples.
+            Parameters:
+            -----------
+            :param predict_proba: callable
+                A function returning probability estimates for samples.
+            :type predict_proba: callable
+            :param sampling_strategy: float, str, dict, or callable, default='all'
+                The sampling strategy to use. Can be a float representing the desired ratio of minority class samples over
+                the majority class samples after resampling, or one of {'all', 'not minority', 'minority'}. Alternatively, it
+                can be a dictionary where the keys represent the class labels and the values represent the desired number of
+                samples for each class, or a callable function returning a dictionary.
+            :type sampling_strategy: float, str, dict, or callable
+            :param random_state: int, RandomState instance or None, default=None
+                Controls the randomness of the algorithm.
+            :type random_state: int, RandomState instance or None
+            :param k_neighbors: int, default=5
+                Number of nearest neighbors to used to construct synthetic samples.
+            :type k_neighbors: int
+            :param n_jobs: int or None, default=None
+                Number of CPU cores used during the computation.
+            :type n_jobs: int or None
+            :param sigma: float, default=1
+                Parameter controlling the thresholding of confidence intervals for identifying uncertain samples.
+            :type sigma: float
+            :param m_neighbors: int, default=10
+                Number of nearest neighbors to consider when estimating if a sample is in danger.
+            :type m_neighbors: int
+            :param min_samples: float, default=0.1
+                Fraction of the maximum class samples to be added as additional synthetic samples.
+            :type min_samples: float
+            :param instance_to_explain: array-like of shape (n_features,) or None, default=None
+                An instance to be used for generating samples around.
+            :type instance_to_explain: array-like of shape (n_features,) or None
+            :param kind: {'borderline-1', 'borderline-2'}, default='borderline-1'
+                The kind of borderline samples to detect. If 'borderline-1', it identifies samples that are
+                borderline to a single class. If 'borderline-2', it identifies samples that are borderline to
+                multiple classes.
+            :type kind: {'borderline-1', 'borderline-2'}
+
+            Attributes:
+            -----------
+            :sampling_strategy_: dict
+                A dictionary containing the actual number of samples for each class after resampling.
         """
 
-        :param predict_proba:
-        :param sampling_strategy:
-        :param random_state:
-        :param k_neighbors:
-        :param n_jobs:
-        :param sigma:
-        :param m_neighbors:
-        :param min_samples:
-        :param instance_to_explain:
-        :param kind:
-        """
         super().__init__(
             sampling_strategy=sampling_strategy,
             random_state=random_state,
