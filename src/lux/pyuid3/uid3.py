@@ -28,6 +28,38 @@ class UId3(BaseEstimator):
     PARALLEL_ENTRY_FACTOR = 1000
 
     def __init__(self, max_depth=None, node_size_limit = 1, grow_confidence_threshold = 0, min_impurity_decrease=0):
+        """A decision tree classifier with customizable parameters for controlling tree growth.
+
+        Parameters:
+        -----------
+        :param max_depth: int or None, default=None
+            The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves
+            contain less than `node_size_limit` samples.
+        :param node_size_limit: int, default=1
+            The minimum number of samples required to split a node further. If the number of samples at a node is less than
+            `node_size_limit`, the node is not split, and it becomes a leaf.
+        :param grow_confidence_threshold: float, default=0
+            The minimum confidence level required for a split to occur. Splits with a confidence level below this threshold
+            are not performed. Confidence level is typically defined by impurity measures such as Gini impurity or entropy.
+        :param min_impurity_decrease: float, default=0
+            The minimum decrease in impurity required for a split to occur. A split is only considered if it leads to at least
+            this amount of impurity decrease. If a split does not meet this criterion, it is not performed.
+
+        Attributes:
+        -----------
+        TREE_DEPTH_LIMIT: int or None
+            The maximum depth of the tree.
+        NODE_SIZE_LIMIT: int
+            The minimum number of samples required to split a node further.
+        GROW_CONFIDENCE_THRESHOLD: float
+            The minimum confidence level required for a split to occur.
+        tree: object or None
+            The decision tree model constructed after fitting the data.
+        node_size_limit: int
+            The minimum number of samples required to split a node further.
+        min_impurity_decrease: float
+            The minimum decrease in impurity required for a split to occur.
+        """
         self.TREE_DEPTH_LIMIT= max_depth
         self.NODE_SIZE_LIMIT = node_size_limit
         self.GROW_CONFIDENCE_THRESHOLD = grow_confidence_threshold

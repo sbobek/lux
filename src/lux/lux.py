@@ -2,7 +2,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
 import pandas as pd
 
-from lux.UncertainSMOTE import UncertainSMOTE
+from lux.samplers import UncertainSMOTE
 from lux.pyuid3.data import Data
 from lux.pyuid3.entropy_evaluator import UncertainEntropyEvaluator
 from lux.pyuid3.uid3 import UId3
@@ -80,7 +80,7 @@ class LUX(BaseEstimator):
             The uncertainty parameter sigma used in the filtering uncertain samples. Every sample that is 2*uncertainty_sigma away from the mean will be removed. Default is 2.
         :type uncertainty_sigma: float
         :param oversampling_strategy: str, optional
-            The strategy for oversampling. It can be 'smote', 'importance', or 'both'. Default is 'smote'.
+            The strategy for oversampling. It can be 'smote', 'importance', or 'both'. Default is 'both'.
         :type oversampling_strategy: str
         """
 

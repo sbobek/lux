@@ -34,6 +34,7 @@ Metrics
     :toctree: generated/
 
     lux.metrics.stability
-    lux.metrics.coverage
+    lux.metrics.local_fidelity
+    lux.metrics.average_jackart
 
 

@@ -1,38 +1,97 @@
 # add smote and importance sampler__all__ = ['UncertainSMOTE']
 
+from sklearn.base import TransformerMixin, BaseEstimator
+import shap
+import pandas as pd
+
 from imblearn.over_sampling._smote.base import BaseSMOTE
 import numpy as np
 import warnings
 from scipy import sparse
-from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.utils import _safe_indexing, check_array, check_random_state
 from sklearn.metrics import pairwise_distances
-import shap
-import pandas as pd
 
 from sklearn.linear_model import LinearRegression
 import numdifftools as nd
 
 
 class ImportanceSampler(TransformerMixin, BaseEstimator):
+
     def __init__(self, classifier, predict_proba, indstance2explain,min_generate_samples):
+        """
+        A transformer class for generating synthetic data using importance sampling based on SHAP values.
+
+        Parameters:
+        -----------
+        :param classifier: object
+            The classifier used for generating SHAP values.
+        :type classifier: object
+        :param predict_proba: callable
+            A function returning probability estimates for samples.
+        :type predict_proba: callable
+        :param instance2explain: array-like of shape (n_features,)
+            An instance to be used for explaining the synthetic samples creation process.
+        :type instance2explain: array-like of shape (n_features,)
+        :param min_generate_samples: int
+            The minimum number of synthetic samples to generate.
+        :type min_generate_samples: int
+
+        """
         self.classifier = classifier
         self.predict_proba = predict_proba
         self.instance2explain = indstance2explain
         self.min_generate_samples=min_generate_samples
 
     def fit(self, X,y=None):
+        """ Fits the transformer by calculating SHAP values for the given dataset.
+
+            Parameters:
+            -----------
+            :param X: array-like of shape (n_samples, n_features)
+                The input data for which SHAP values are to be calculated.
+            :param y: array-like of shape (n_samples,), default=None
+                The target values. This parameter is not used and is only present to adhere to the scikit-learn transformer interface.
+
+            Returns:
+            --------
+            self: object
+                The fitted transformer instance.
+        """
         self.shap_values =  self.__getshap(X)
         return self
 
     def transform(self,X,y=None):
+        """ Transforms the dataset by generating synthetic samples based on SHAP values.
+
+        Parameters:
+        -----------
+        :param X: array-like of shape (n_samples, n_features)
+            The input data to be transformed.
+        :param y: array-like of shape (n_samples,), default=None
+            The target values. This parameter is not used and is only present to adhere to the scikit-learn transformer interface.
+
+        Returns:
+        --------
+        transformed_data: array-like of shape (n_samples_new, n_features)
+            The transformed dataset containing the original samples along with the generated synthetic samples.
+        """
         return self.__importance_sampler(X,self.instance_to_explain, num=10)
 
     def __getshap(self, X_train_sample):
-        """ Calculates SHAP values
+        """ Calculates SHAP values for the given dataset.
 
-        :param X_train_sample:
-        :return:
+            Parameters:
+            -----------
+            :param X_train_sample: array-like of shape (n_samples, n_features)
+                The input data for which SHAP values are to be calculated.
+
+            Returns:
+            --------
+            shap_values: list or array-like
+                The SHAP values calculated for each feature and sample in the dataset.
+            expected_values: list or array-like
+                The expected values of the SHAP values calculated for each feature and sample in the dataset.
+
         """
         # calculate shap values
         try:
@@ -100,10 +159,10 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                 mask = indexer == cl
                 xs = X_train_sample.iloc[mask, dim]
                 ys = shapclass[mask, dim]
-                svr = LinearRegression()  # SVR()
-                svr.fit(xs.values.reshape(-1, 1), ys)
+                svrc = LinearRegression()  # SVR()
+                svrc.fit(xs.values.reshape(-1, 1), ys)
 
-                F = lambda x, svr=svr: svr.predict(x.reshape(1, -1))
+                F = lambda x, svr=svrc: svr.predict(x.reshape(1, -1))
                 gradient = nd.Gradient(F)
 
                 gradcl.append(gradient)
@@ -157,19 +216,51 @@ class UncertainSMOTE(BaseSMOTE):
             instance_to_explain=None,
             kind="borderline-1",
     ):
+        """An implementation of Synthetic Minority Over-sampling Technique (SMOTE) with handling of uncertain samples.
+            Parameters:
+            -----------
+            :param predict_proba: callable
+                A function returning probability estimates for samples.
+            :type predict_proba: callable
+            :param sampling_strategy: float, str, dict, or callable, default='all'
+                The sampling strategy to use. Can be a float representing the desired ratio of minority class samples over
+                the majority class samples after resampling, or one of {'all', 'not minority', 'minority'}. Alternatively, it
+                can be a dictionary where the keys represent the class labels and the values represent the desired number of
+                samples for each class, or a callable function returning a dictionary.
+            :type sampling_strategy: float, str, dict, or callable
+            :param random_state: int, RandomState instance or None, default=None
+                Controls the randomness of the algorithm.
+            :type random_state: int, RandomState instance or None
+            :param k_neighbors: int, default=5
+                Number of nearest neighbors to used to construct synthetic samples.
+            :type k_neighbors: int
+            :param n_jobs: int or None, default=None
+                Number of CPU cores used during the computation.
+            :type n_jobs: int or None
+            :param sigma: float, default=1
+                Parameter controlling the thresholding of confidence intervals for identifying uncertain samples.
+            :type sigma: float
+            :param m_neighbors: int, default=10
+                Number of nearest neighbors to consider when estimating if a sample is in danger.
+            :type m_neighbors: int
+            :param min_samples: float, default=0.1
+                Fraction of the maximum class samples to be added as additional synthetic samples.
+            :type min_samples: float
+            :param instance_to_explain: array-like of shape (n_features,) or None, default=None
+                An instance to be used for generating samples around.
+            :type instance_to_explain: array-like of shape (n_features,) or None
+            :param kind: {'borderline-1', 'borderline-2'}, default='borderline-1'
+                The kind of borderline samples to detect. If 'borderline-1', it identifies samples that are
+                borderline to a single class. If 'borderline-2', it identifies samples that are borderline to
+                multiple classes.
+            :type kind: {'borderline-1', 'borderline-2'}
+
+            Attributes:
+            -----------
+            :sampling_strategy_: dict
+                A dictionary containing the actual number of samples for each class after resampling.
         """
 
-        :param predict_proba:
-        :param sampling_strategy:
-        :param random_state:
-        :param k_neighbors:
-        :param n_jobs:
-        :param sigma:
-        :param m_neighbors:
-        :param min_samples:
-        :param instance_to_explain:
-        :param kind:
-        """
         super().__init__(
             sampling_strategy=sampling_strategy,
             random_state=random_state,
@@ -289,18 +380,16 @@ class UncertainSMOTE(BaseSMOTE):
            function returning probability estimates for samples
         :param samples: {array-like, sparse matrix} of shape (n_samples, n_features).
            The samples to check if either they are in danger or not.
-        :param target_class: int or str.
+        :param target_class: nt or str.
            The target corresponding class being over-sampled.
         :param y: array-like of shape (n_samples,).
            The true label in order to check the neighbour labels.
-        :param kind:
-           {'danger', 'noise'}, default='danger'
+        :param kind: {'danger', 'noise'}, default='danger'
             The type of classification to use. Can be either:
             - If 'danger', check if samples are in danger,
             - If 'noise', check if samples are noise.
 
-        :return: ndarray of shape (n_samples,).
-           A boolean array where True refer to samples in danger or noise.
+        :return: ndarray of shape (n_samples,). A boolean array where True refer to samples in danger or noise.
         """
 
         c_labels = samples[np.argmax(self.predict_proba(samples), axis=1) == target_class]
