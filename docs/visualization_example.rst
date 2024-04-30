@@ -16,12 +16,12 @@ Calling `lux.justify` after fitting the model allows to generate rule-based expl
 
 .. code-block:: python
 
-    #see the justification of the instance being classified for a given class
+    # see the justification of the instance being classified for a given class
     lux.justify(np.array(iris_instance))
 
     # This will generate something like:
     # The number after the hash mark indicate the confidence of the rule
-    #['IF petal_length >=4.8999998569488525 THEN class = 2 # 1.0\n']
+    # ['IF petal_length >=4.8999998569488525 THEN class = 2 # 1.0\n']
 
 Graphviz
 -----------
@@ -44,7 +44,7 @@ The result of that call would be something like:
 
 Advanced
 -----------
-The more advanced, but also the easiest way to obtain visualizations is by calling `vizualize` function of LUX.
+The more advanced, but also the easiest way to obtain visualizations is by calling `visualize` function of LUX.
 Additionally passing instance2explain and counterfactual parameters will allow to mark their decision path on the tree with red and blue dots.
 
 .. code-block:: python
