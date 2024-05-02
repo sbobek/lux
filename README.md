@@ -81,7 +81,7 @@ lux.justify(np.array(iris_instance))
 
 ```
 
-The above code should give you the answer as follows:
+The above code should give you the answer as follows (depending which instance was selected previously as the one to explain):
 ```
 ['IF petal_length >= 5.15 THEN class = 2 # 0.9833409059468439\n']
 ```
@@ -110,7 +110,8 @@ You can obtain a whole rule-based model for the local uncertain explanation that
 print(lux.to_HMR())
 ```
 
-This will generate model which can later be executed by [HeaRTDroid](https://heartdroid.re)
+This will generate model which can later be executed by [HeaRTDroid](https://heartdroid.re) which is rule-based inference engine for Android mobile devices.
+Additionally, the HMR format below, which is used by  [HeaRTDroid](https://heartdroid.re) allows visualization of explanations in a format of decision tables with [HWEd](https://heartdroid.re/hwed/#/) online editor.
 
 ```
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -162,9 +163,11 @@ The code should yield something like that (depending on the instance that was se
 
 # Cite this work
 
+The software is the direct implementation of a method described in the following paper:
+
 ```
 @misc{bobek2023local,
-      title={Local Universal Rule-based Explanations}, 
+      title={Local Universal Explainer ({LUX}) -- a rule-based explainer with factual, counterfactual and visual explanations}, 
       author={Szymon Bobek and Grzegorz J. Nalepa},
       year={2023},
       eprint={2310.14894},
