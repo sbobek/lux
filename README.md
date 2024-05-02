@@ -1,3 +1,6 @@
+[![PyPI](https://img.shields.io/pypi/v/lux-explainer)](https://pypi.org/project/lux-explainer/)  ![License](https://img.shields.io/github/license/sbobek/lux)
+ ![PyPI - Downloads](https://img.shields.io/pypi/dm/lux-explainer) [![Documentation Status](https://readthedocs.org/projects/lux-explainer/badge/?version=latest)](https://tsproto.readthedocs.io/en/latest/?badge=latest)
+   
 # LUX (Local Universal Rule-based Explainer)
 ## Main features
   <img align="right"  src="https://raw.githubusercontent.com/sbobek/lux/main/pix/lux-logo.png" width="200">
@@ -81,7 +84,7 @@ lux.justify(np.array(iris_instance))
 
 ```
 
-The above code should give you the answer as follows (depending which instance was selected previously as the one to explain):
+The above code should give you the answer as follows:
 ```
 ['IF petal_length >= 5.15 THEN class = 2 # 0.9833409059468439\n']
 ```
@@ -112,6 +115,7 @@ print(lux.to_HMR())
 
 This will generate model which can later be executed by [HeaRTDroid](https://heartdroid.re) which is rule-based inference engine for Android mobile devices.
 Additionally, the HMR format below, which is used by  [HeaRTDroid](https://heartdroid.re) allows visualization of explanations in a format of decision tables with [HWEd](https://heartdroid.re/hwed/#/) online editor.
+
 
 ```
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%
