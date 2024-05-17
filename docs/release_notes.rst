@@ -1,12 +1,10 @@
 Release notes
 =============
 
-1.2.2 (2024-05-17)
--------------
-* gower replaced with gower-multiprocessing
-
 1.2.1 (2024-05-17)
 -------------
+* Fixed invalid requirements in build file
+* gower replaced with gower-multiprocessing
 * Fixed visualization issue when no instance nor counterfactual is passed.
 * Fixed issue with categorical variables.
 * Fixed with gower installed without multiprocessing
