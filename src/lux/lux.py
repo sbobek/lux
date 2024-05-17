@@ -1,3 +1,4 @@
+from imblearn.over_sampling import SMOTENC, SMOTE
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
 import pandas as pd
@@ -582,9 +583,16 @@ class LUX(BaseEstimator):
                                          indstance2explain=instance_to_explain,
                                          min_generate_samples=self.min_generate_samples)
                 X_train_sample = isam.fit_transform(X_train_sample)
+                if categorical is not None and sum(categorical) > 0:
+                    sm = SMOTENC(categorical_features=categorical)
+                else:
+                    sm = SMOTE()
+
+                X_train_sample_np, _ = sm.fit_resample(X_train_sample, self.classifier.predict(X_train_sample))
+                X_train_sample = pd.DataFrame(X_train_sample_np, columns=X_train_sample.columns)
 
             cols = X_train_sample.columns
-            X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(0.3 * X_train_sample.shape[0]), X_train_sample.shape[1])) * instance_to_explain))
+            X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(self.neighborhood_size * X_train_sample.shape[0]), X_train_sample.shape[1])) * instance_to_explain))
             X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
 
         if X_importances is not None:
@@ -736,7 +744,7 @@ class LUX(BaseEstimator):
         if rule == {}:
             return 0, 0
         for i, v in rule.items():
-            op = '' if dict(zip(features, categorical))[i] == False else '=='
+            op = '' #if dict(zip(features, categorical))[i] == False else '=='
             query.append(f'{i}{op}' + f'and {i}{op}'.join(v))
 
         covered = dataset.query(' and '.join(query))
@@ -784,7 +792,14 @@ class LUX(BaseEstimator):
                         rule['distance'] = dist
                 elif counterfactual_representative == self.CF_REPRESENTATIVE_NEAREST:
                     if self.categorical is not None:
-                        ids_dist = gower.gower_topn(instance_to_explain, rule['covered'], n=1,
+                        import inspect
+                        signature = inspect.signature(gower.gower_topn)
+                        has_njobs = 'n_jobs' in signature.parameters
+                        if has_njobs:
+                            ids_dist = gower.gower_topn(instance_to_explain, rule['covered'], n=1,
+                                                        cat_features=self.categorical, n_jobs=n_jobs)
+                        else:
+                            ids_dist = gower.gower_topn(instance_to_explain, rule['covered'], n=1,
                                                     cat_features=self.categorical, n_jobs=n_jobs)
                         representative_sample = rule['covered'].iloc[ids_dist['index'].ravel()[0]]
                         rule['counterfactual'] = representative_sample
@@ -808,10 +823,16 @@ class LUX(BaseEstimator):
             return counterfactual_rules[:topn]
 
     def visualize(self, data, target_column_name='class',instance2explain=None, counterfactual=None, filename='tree.dot'):
-        cfdf = pd.DataFrame(counterfactual['counterfactual']).T
-        cfdf[target_column_name] = np.argmax(self.predict_proba(cfdf.values.reshape(1, -1))[0])
-        i2edf = pd.DataFrame(instance2explain, columns=self.attributes_names)
-        i2edf[target_column_name] = np.argmax(self.predict_proba(i2edf.values.reshape(1, -1))[0])
+        if counterfactual is not None:
+            cfdf = pd.DataFrame(counterfactual['counterfactual']).T
+            cfdf[target_column_name] = np.argmax(self.predict_proba(cfdf.values.reshape(1, -1))[0])
+        else:
+            cfdf=None
+        if instance2explain is not None:
+            i2edf = pd.DataFrame(instance2explain, columns=self.attributes_names)
+            i2edf[target_column_name] = np.argmax(self.predict_proba(i2edf.values.reshape(1, -1))[0])
+        else:
+            i2edf=None
         self.uid3.tree.save_dot(filename, fmt='.2f', visual=True, background_data=data, instance2explain=i2edf,
                                 counterfactual=cfdf)
 
