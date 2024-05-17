@@ -476,8 +476,11 @@ class Tree:
 
             has_plotted=False
             for te in parent.get_edges():
-
-                sibling_data = background_data.query(parent.get_att()+' '+te.get_value().get_name())
+                if parent.get_type() == Attribute.TYPE_NUMERICAL:
+                    op=''
+                else:
+                    op='=='
+                sibling_data = background_data.query(parent.get_att()+f'{op}'+te.get_value().get_name())
                                                      
                 if not has_plotted and not parent.is_leaf():
                     result += f"{hash(parent)}[label=\"\",shape=box, color={col}, image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"

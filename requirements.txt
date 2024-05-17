@@ -9,6 +9,6 @@ shap==0.41.0
 lime==0.2.0.1
 anchor-exp==0.0.2.0
 imbalanced-learn==0.9.1
-gower==0.1.2
+gower-multiprocessing==0.2.2
 numdifftools==0.9.41
 

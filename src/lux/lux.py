@@ -11,9 +11,10 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import OPTICS
 import shap
 import sklearn
-import gower
+import gower_multiprocessing as gower
 import numpy as np
 import warnings
+import inspect
 
 from lux.samplers import ImportanceSampler
 
@@ -425,10 +426,17 @@ class LUX(BaseEstimator):
                             importances_bbox += importances_bbox_inv
 
                     if metric == 'precomputed':
-                        ids_c = \
+                        signature = inspect.signature(gower.gower_topn)
+                        has_njobs = 'n_jobs' in signature.parameters
+                        if has_njobs:
+                            ids_c = \
                             gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
                                              n=nn.n_neighbors,
                                              n_jobs=n_jobs)['index']
+                        else:
+                            ids_c = \
+                                gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                                 n=nn.n_neighbors)['index']
                     else:
                         nn.fit(X_c_only.values)
                         _, ids_c = nn.kneighbors(nn_instance_to_explain)
@@ -489,9 +497,14 @@ class LUX(BaseEstimator):
             for instance_to_explain in boundiong_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 if metric == 'precomputed':
-                    ids_c = \
-                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
+                    signature = inspect.signature(gower.gower_topn)
+                    has_njobs = 'n_jobs' in signature.parameters
+                    if has_njobs:
+                        ids_c =  gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
                                          n_jobs=n_jobs)['index']
+                    else:
+                        ids_c = \
+                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors)['index']
                 else:
                     _, ids_c = nn.kneighbors(nn_instance_to_explain)
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
@@ -510,7 +523,12 @@ class LUX(BaseEstimator):
 
             clu = OPTICS(min_samples=self.min_samples, metric=metric, n_jobs=n_jobs)
             if metric == 'precomputed':
-                optics_input = gower.gower_matrix(X_copy.iloc[:, ], cat_features=categorical, n_jobs=n_jobs)
+                signature = inspect.signature(gower.gower_topn)
+                has_njobs = 'n_jobs' in signature.parameters
+                if has_njobs:
+                    optics_input = gower.gower_matrix(X_copy.iloc[:, ], cat_features=categorical, n_jobs=n_jobs)
+                else:
+                    optics_input = gower.gower_matrix(X_copy.iloc[:, ], cat_features=categorical)
                 labels = clu.fit_predict(optics_input)
             else:
                 labels = clu.fit_predict(X_copy)
@@ -537,15 +555,28 @@ class LUX(BaseEstimator):
             X_train_sample = X.loc[X_train_sample.index]
             if radius is None:
                 if metric == 'precomputed':
-                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                    signature = inspect.signature(gower.gower_topn)
+                    has_njobs = 'n_jobs' in signature.parameters
+                    if has_njobs:
+                        distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
                                                    X_train_sample.iloc[:, ], cat_features=categorical, n_jobs=n_jobs)
+                    else:
+                        distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                       X_train_sample.iloc[:, ], cat_features=categorical)
                 else:
                     distances = sklearn.metrics.pairwise_distances(X_train_sample, instance_to_explain.reshape(1, -1))
                 radius = max(distances)
 
             if metric == 'precomputed':
-                distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1), X_train_sample.iloc[:, ],
+                signature = inspect.signature(gower.gower_topn)
+                has_njobs = 'n_jobs' in signature.parameters
+                if has_njobs:
+                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1), X_train_sample.iloc[:, ],
                                                cat_features=categorical, n_jobs=n_jobs)
+                else:
+                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                   X_train_sample.iloc[:, ],
+                                                   cat_features=categorical)
             else:
                 distances = sklearn.metrics.pairwise_distances(X, instance_to_explain.reshape(1, -1))
             idxs, _ = np.where(distances <= radius)
@@ -656,8 +687,14 @@ class LUX(BaseEstimator):
             elif representative == self.REPRESENTATIVE_NEAREST:
                 # find nearest example to explain_instance and use it as representative_sample
                 if metric == 'precomputed':
-                    ids = gower.gower_topn(nn_instance_to_explain, data, n=1, cat_features=categorical, n_jobs=n_jobs)[
-                        'index']
+                    signature = inspect.signature(gower.gower_topn)
+                    has_njobs = 'n_jobs' in signature.parameters
+                    if has_njobs:
+                        ids = gower.gower_topn(nn_instance_to_explain, data, n=1, cat_features=categorical, n_jobs=n_jobs)[
+                            'index']
+                    else:
+                        ids = gower.gower_topn(nn_instance_to_explain, data, n=1, cat_features=categorical)[
+                            'index']
                     representative_sample = data.iloc[ids.ravel()[0]]
                 else:
                     nn_inverse = NearestNeighbors(n_neighbors=1, metric=metric)
@@ -668,8 +705,14 @@ class LUX(BaseEstimator):
 
             # Find closest to the representative sample
             if metric == 'precomputed':
-                ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=nn.n_neighbors,
-                                         cat_features=categorical, n_jobs=n_jobs)['index']
+                signature = inspect.signature(gower.gower_topn)
+                has_njobs = 'n_jobs' in signature.parameters
+                if has_njobs:
+                    ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=nn.n_neighbors,
+                                             cat_features=categorical, n_jobs=n_jobs)['index']
+                else:
+                    ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=nn.n_neighbors,
+                                             cat_features=categorical)['index']
             else:
                 nn.fit(X_sample)
                 _, ids_c = nn.kneighbors(np.array(representative_sample).reshape(1, -1))
@@ -792,7 +835,6 @@ class LUX(BaseEstimator):
                         rule['distance'] = dist
                 elif counterfactual_representative == self.CF_REPRESENTATIVE_NEAREST:
                     if self.categorical is not None:
-                        import inspect
                         signature = inspect.signature(gower.gower_topn)
                         has_njobs = 'n_jobs' in signature.parameters
                         if has_njobs:
@@ -800,7 +842,7 @@ class LUX(BaseEstimator):
                                                         cat_features=self.categorical, n_jobs=n_jobs)
                         else:
                             ids_dist = gower.gower_topn(instance_to_explain, rule['covered'], n=1,
-                                                    cat_features=self.categorical, n_jobs=n_jobs)
+                                                    cat_features=self.categorical)
                         representative_sample = rule['covered'].iloc[ids_dist['index'].ravel()[0]]
                         rule['counterfactual'] = representative_sample
                         dist = ids_dist['values']
