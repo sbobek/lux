@@ -1,0 +1,35 @@
+digraph mediationTree{
+-9223371868771899596[label=" outlook
+ ",shape=box, color=black]-9223371868771899596->-9223371868771899616[label="overcast
+ conf=0.94 "]
+-9223371868771899616[label=" play
+yes[1.0]
+no[0.0]
+ ",shape=box, color=red]-9223371868771899596->-9223371868771899560[label="sunny
+ conf=0.94 "]
+-9223371868771899560[label=" humidity
+ ",shape=box, color=black]-9223371868771899560->-9223371868771899532[label="normal
+ conf=0.93 "]
+-9223371868771899532[label=" play
+yes[1.0]
+no[0.0]
+ ",shape=box, color=red]-9223371868771899560->-9223371868771899568[label="high
+ conf=0.93 "]
+-9223371868771899568[label=" play
+yes[0.4]
+no[0.6]
+ ",shape=box, color=red]-9223371868771899596->-9223371868771899488[label="rainy
+ conf=0.94 "]
+-9223371868771899488[label=" windy
+ ",shape=box, color=black]-9223371868771899488->-9223371868771975700[label="TRUE
+ conf=0.94 "]
+-9223371868771975700[label=" play
+no[0.67]
+yes[0.33]
+ ",shape=box, color=red]-9223371868771899488->-9223371868771899428[label="FALSE
+ conf=0.94 "]
+-9223371868771899428[label=" play
+yes[1.0]
+no[0.0]
+ ",shape=box, color=red]
+}

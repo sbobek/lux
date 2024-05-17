@@ -1,0 +1,23 @@
+@relation machine.symbolic
+
+@attribute speed {high, normal, low}
+@attribute temperature {high, normal, low}
+@attribute load {high, normal}
+@attribute oil {low, normal}
+@attribute crash_risk {yes, no}
+
+@data
+high[0.5];low[0.3];normal[0.2],high,high,low,yes
+high,high,high,low,yes
+normal[0.2];high[0.7];low[0.1],high,high,normal,no
+low,normal,high,normal,no
+low,low,normal,normal[0.3],no
+low,low,normal,low,yes
+normal,low,normal,low,no
+high,normal,high,normal[0.6];low[0.4],yes
+high,low,normal[0.4],normal,no
+low,normal,normal,normal,no
+high,normal,normal,low,no
+normal,normal,high,low[0.4],no
+normal,high,normal,normal,no
+low,normal,high,low,yes

@@ -1,0 +1,20 @@
+{
+  "pyuid3": {
+    "Overview": "/",
+    "AttStats": "att_stats.html",
+    "Attribute": "attribute.html",
+    "Data": "data.html",
+    "DataScrambler": "data_scrambler.html",
+    "EntropyEvaluator": "entropy_evaluator.html",
+    "Instance": "instance.html",
+    "ParseException": "parse_exception.html",
+    "Reading": "reading.html",
+    "Tree": "tree.html",
+    "TreeEdge": "tree_edge.html",
+    "TreeEvaluator": "tree_evaluator.html",
+    "TreeNode": "tree_node.html",
+    "UId3": "uId3.html",
+    "UncertainEntropyEvaluator": "uncertain_entropy_evaluator.html",
+    "Value": "value.html"
+  }
+}
