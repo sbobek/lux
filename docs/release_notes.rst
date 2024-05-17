@@ -1,7 +1,7 @@
 Release notes
 =============
 
-1.2.3 (2024-05-17)
+1.2.4 (2024-05-17)
 -------------
 * Fixed invalid requirements in build file
 * gower replaced with gower-multiprocessing
