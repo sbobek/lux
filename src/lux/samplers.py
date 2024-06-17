@@ -1,5 +1,5 @@
 # add smote and importance sampler__all__ = ['UncertainSMOTE']
-
+import sklearn
 from sklearn.base import TransformerMixin, BaseEstimator
 import shap
 import pandas as pd
@@ -17,7 +17,7 @@ import numdifftools as nd
 
 class ImportanceSampler(TransformerMixin, BaseEstimator):
 
-    def __init__(self, classifier, predict_proba, indstance2explain,min_generate_samples):
+    def __init__(self, classifier, predict_proba, indstance_to_explain,min_generate_samples):
         """
         A transformer class for generating synthetic data using importance sampling based on SHAP values.
 
@@ -29,9 +29,9 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         :param predict_proba: callable
             A function returning probability estimates for samples.
         :type predict_proba: callable
-        :param instance2explain: array-like of shape (n_features,)
+        :param indstance_to_explain: array-like of shape (n_features,)
             An instance to be used for explaining the synthetic samples creation process.
-        :type instance2explain: array-like of shape (n_features,)
+        :type indstance_to_explain: array-like of shape (n_features,)
         :param min_generate_samples: int
             The minimum number of synthetic samples to generate.
         :type min_generate_samples: int
@@ -39,7 +39,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         """
         self.classifier = classifier
         self.predict_proba = predict_proba
-        self.instance2explain = indstance2explain
+        self.indstance_to_explain = indstance_to_explain
         self.min_generate_samples=min_generate_samples
 
     def fit(self, X,y=None):
@@ -75,7 +75,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         transformed_data: array-like of shape (n_samples_new, n_features)
             The transformed dataset containing the original samples along with the generated synthetic samples.
         """
-        return self.__importance_sampler(X,self.instance_to_explain, num=10)
+        return self.__importance_sampler(X,self.indstance_to_explain, num=10)
 
     def __getshap(self, X_train_sample):
         """ Calculates SHAP values for the given dataset.
@@ -126,15 +126,18 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         :param num:
         :return:
         """
-        shap_values = self.shap_values
-        abs_shap = np.array([abs(sv).mean(1) for sv in shap_values])
+        X_train_sample = pd.concat((pd.DataFrame(instance_to_explain, columns=X_train_sample.columns), X_train_sample))
+        shap_values,_ = self.shap_values
         indexer = self.classifier.predict(X_train_sample)
         shapclass = []
 
         for i in range(0, len(X_train_sample)):
             # we move sample towards the expected value, which should be decision boundary in balanced, binary case
             best_index = indexer[i]
-            shapclass.append([shap_values[best_index][i, :]])
+            if isinstance(shap_values,list):
+                shapclass.append([shap_values[best_index][i, :]])
+            else:
+                print(shap_values.shape)
         shapclass = np.concatenate(shapclass)
         shapcols = [c + '_shap' for c in X_train_sample.columns]
         cols = [c for c in X_train_sample.columns]
@@ -147,10 +150,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         fulldf_all.index = X_train_sample.index
         class_of_i2e = self.classifier.predict(instance_to_explain.reshape(1, -1))
         predictions = self.classifier.predict(fulldf_all[cols])
-        fulldf = fulldf_all[predictions == class_of_i2e]
-        if len(fulldf) == 0:
-            fulldf = fulldf_all[predictions != class_of_i2e]
-
+        fulldf = fulldf_all
         gradsf = {}
 
         for cl in np.unique(indexer):
@@ -169,9 +169,8 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             gradsf[cl] = gradcl
 
 
-        alpha = abs(shapclass).mean()
-
-        def perturb(x, num, alpha, gradients, cols, shapcols):
+        alpha = np.mean(sklearn.metrics.pairwise_distances(fulldf_all[cols][predictions!=class_of_i2e], Y=instance_to_explain))/num
+        def perturb(x, num, alpha, gradients, cols):
             newx = []
             last = x[cols].values
             newx.append(last)
@@ -192,8 +191,6 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                 fulldf.sample(int(self.min_generate_samples * len(fulldf))).apply(perturb, args=(
                     num, alpha, gradsf, cols),
                                                                                   axis=1).values)
-            upsamples = upsamples[
-                        np.random.choice(upsamples.shape[0], max(len(fulldf), upsamples.shape[0]), replace=False), :]
         else:
             upsamples = fulldf
 

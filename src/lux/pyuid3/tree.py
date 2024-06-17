@@ -455,8 +455,8 @@ class Tree:
                     background_data = pd.concat((counterfactual,background_data))
                 background_data[target_column] = background_data[target_column].astype(str)
                 stats = background_data[[target_column]].value_counts().to_frame('samples').sort_index().reset_index()
-
-                sns.barplot(data = stats,
+                if len(stats) > 0:
+                    sns.barplot(data = stats,
                             x=target_column,y='samples', alpha=0.7,palette=palette,ax=ax)
 
                 if instance2explain is not None:
@@ -525,10 +525,10 @@ class Tree:
                 sibling_instance2explain=instance2explain
                 sibling_counterfactual=counterfactual
                 if instance2explain is not None:
-                    if len(instance2explain.query(parent.get_att()+' '+te.get_value().get_name())) == 0:
+                    if len(instance2explain.query(parent.get_att()+f'{op}'+te.get_value().get_name())) == 0:
                         sibling_instance2explain=None 
                 if counterfactual is not None:
-                    if len(counterfactual.query(parent.get_att()+' '+te.get_value().get_name())) == 0:
+                    if len(counterfactual.query(parent.get_att()+f'{op}'+te.get_value().get_name())) == 0:
                         sibling_counterfactual=None 
                 result += self.to_dot_visual(parent=te.get_child(),background_data=sibling_data,
                                             instance2explain=sibling_instance2explain, 

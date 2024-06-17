@@ -1,8 +1,10 @@
 Release notes
 =============
 
-1.2.4 (2024-05-17)
+1.2.7 (2024-06-17)
 -------------
+* Bugfixes in importance samplers
+* Added medoid CF for categorical variables
 * Fixed invalid requirements in build file
 * gower replaced with gower-multiprocessing
 * Fixed visualization issue when no instance nor counterfactual is passed.

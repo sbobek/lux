@@ -295,10 +295,10 @@ class LUX(BaseEstimator):
         y_train_sample = self.predict_proba(X_train_sample)
         # limit features here
 
-        threshold_proba = np.max(self.predict_proba(boundiong_box_points))
-        proball = np.max(self.predict_proba(X_train_sample), axis=1)
-        threshold = np.min((np.mean(proball) - self.uncertainty_sigma * np.std(proball), threshold_proba))
-        X_train_sample = X_train_sample[proball >= threshold]
+        # threshold_proba = np.max(self.predict_proba(boundiong_box_points))
+        # proball = np.max(self.predict_proba(X_train_sample), axis=1)
+        # threshold = np.min((np.mean(proball) - self.uncertainty_sigma * np.std(proball), threshold_proba))
+        # X_train_sample = X_train_sample[proball >= threshold]
 
         # no proba predictor
         y_train_sample_proba = self.predict_proba(X_train_sample)
@@ -603,7 +603,7 @@ class LUX(BaseEstimator):
             elif self.oversampling_strategy == self.OS_STRATEGY_IMPORTANCE:
                 instance_to_explain = boundiong_box_points[0]
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
-                                         indstance2explain=instance_to_explain,
+                                         indstance_to_explain=instance_to_explain,
                                          min_generate_samples=self.min_generate_samples)
                 X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
@@ -611,16 +611,16 @@ class LUX(BaseEstimator):
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
-                                         indstance2explain=instance_to_explain,
+                                         indstance_to_explain=instance_to_explain,
                                          min_generate_samples=self.min_generate_samples)
                 X_train_sample = isam.fit_transform(X_train_sample)
-                if categorical is not None and sum(categorical) > 0:
-                    sm = SMOTENC(categorical_features=categorical)
-                else:
-                    sm = SMOTE()
-
-                X_train_sample_np, _ = sm.fit_resample(X_train_sample, self.classifier.predict(X_train_sample))
-                X_train_sample = pd.DataFrame(X_train_sample_np, columns=X_train_sample.columns)
+                # if categorical is not None and sum(categorical) > 0:
+                #     sm = SMOTENC(categorical_features=categorical)
+                # else:
+                #     sm = SMOTE()
+                #
+                # X_train_sample_np, _ = sm.fit_resample(X_train_sample, self.classifier.predict(X_train_sample))
+                # X_train_sample = pd.DataFrame(X_train_sample_np, columns=X_train_sample.columns)
 
             cols = X_train_sample.columns
             X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(self.neighborhood_size * X_train_sample.shape[0]), X_train_sample.shape[1])) * instance_to_explain))
@@ -824,7 +824,13 @@ class LUX(BaseEstimator):
                 # find candidates from background according to counterfactual_representative
                 if counterfactual_representative == self.CF_REPRESENTATIVE_MEDOID:
                     if self.categorical is not None:
-                        pass
+                        distances = gower.gower_matrix(rule['covered'])
+                        ids = np.argmin(distances.sum(axis=0))
+                        dist = sklearn.metrics.pairwise_distances(rule['covered'].iloc[ids].values.reshape(1, -1),
+                                                                  instance_to_explain)
+                        representative_sample = rule['covered'].iloc[ids]
+                        rule['counterfactual'] = representative_sample
+                        rule['distance'] = dist
                     else:
                         distances = sklearn.metrics.pairwise_distances(rule['covered'])
                         ids = np.argmin(distances.sum(axis=0))

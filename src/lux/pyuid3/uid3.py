@@ -473,7 +473,7 @@ class UId3(BaseEstimator):
                 #to prevent from 0-division
                 single_temp_gain=0
             else:
-                single_temp_gain =(beta*pure_single_temp_gain_shap*pure_single_temp_gain)/(1+beta)#((1+beta**2)*pure_single_temp_gain_shap*pure_single_temp_gain)/((beta**2*pure_single_temp_gain_shap)+pure_single_temp_gain)*conf_for_value
+                single_temp_gain =(beta*pure_single_temp_gain_shap*pure_single_temp_gain)/(1+beta)
         else:
             pure_single_temp_gain = (globalEntropy - (stat_for_lt_value*entropyEvaluator.calculate_entropy(subdata_less_than)+
                                                                                    (stat_for_gte_value)*entropyEvaluator.calculate_entropy(subdata_greater_equal) ))
