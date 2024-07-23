@@ -17,7 +17,7 @@ import numdifftools as nd
 
 class ImportanceSampler(TransformerMixin, BaseEstimator):
 
-    def __init__(self, classifier, predict_proba, indstance_to_explain,min_generate_samples):
+    def __init__(self, classifier, predict_proba, indstance_to_explain, min_generate_samples):
         """
         A transformer class for generating synthetic data using importance sampling based on SHAP values.
 
@@ -40,9 +40,9 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         self.classifier = classifier
         self.predict_proba = predict_proba
         self.indstance_to_explain = indstance_to_explain
-        self.min_generate_samples=min_generate_samples
+        self.min_generate_samples = min_generate_samples
 
-    def fit(self, X,y=None):
+    def fit(self, X, y=None):
         """ Fits the transformer by calculating SHAP values for the given dataset.
 
             Parameters:
@@ -57,10 +57,10 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             self: object
                 The fitted transformer instance.
         """
-        self.shap_values =  self.__getshap(X)
+        self.shap_values = self.__getshap(X)
         return self
 
-    def transform(self,X,y=None):
+    def transform(self, X, y=None):
         """ Transforms the dataset by generating synthetic samples based on SHAP values.
 
         Parameters:
@@ -75,7 +75,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         transformed_data: array-like of shape (n_samples_new, n_features)
             The transformed dataset containing the original samples along with the generated synthetic samples.
         """
-        return self.__importance_sampler(X,self.indstance_to_explain, num=10)
+        return self.__importance_sampler(X, self.indstance_to_explain, num=10)
 
     def __getshap(self, X_train_sample):
         """ Calculates SHAP values for the given dataset.
@@ -127,14 +127,14 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         :return:
         """
         X_train_sample = pd.concat((pd.DataFrame(instance_to_explain, columns=X_train_sample.columns), X_train_sample))
-        shap_values,_ = self.shap_values
+        shap_values, _ = self.shap_values
         indexer = self.classifier.predict(X_train_sample)
         shapclass = []
 
         for i in range(0, len(X_train_sample)):
             # we move sample towards the expected value, which should be decision boundary in balanced, binary case
             best_index = indexer[i]
-            if isinstance(shap_values,list):
+            if isinstance(shap_values, list):
                 shapclass.append([shap_values[best_index][i, :]])
             else:
                 print(shap_values.shape)
@@ -168,8 +168,11 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                 gradcl.append(gradient)
             gradsf[cl] = gradcl
 
+        meandist = np.max(
+            sklearn.metrics.pairwise_distances(fulldf_all[cols][predictions != class_of_i2e], Y=instance_to_explain))
 
-        alpha = np.mean(sklearn.metrics.pairwise_distances(fulldf_all[cols][predictions!=class_of_i2e], Y=instance_to_explain))/num
+        alpha = (np.max(np.abs((fulldf_all[cols][predictions != class_of_i2e] - instance_to_explain)), axis=0)).values
+
         def perturb(x, num, alpha, gradients, cols):
             newx = []
             last = x[cols].values
@@ -178,23 +181,48 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
 
             grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
             for _ in range(0, num):
-                last = last - alpha * grad
-                cl = self.classifier.predict(last.reshape(1, -1))[0]
-                grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
-                newx.append(last)
-                if cl != self.classifier.predict(last.reshape(1, -1))[0]:
+                # cl = self.classifier.predict(last.reshape(1,-1))[0]
+                last = last - alpha / num * np.sign(grad)
+                if np.sqrt(np.sum((np.array(last) - instance_to_explain) * (
+                        np.array(last) - instance_to_explain))) > meandist:
                     break
+                grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
+                newx.append(last.copy())
+            return np.array(newx)
+
+        def perturbortho(x, num, alpha, gradients, cols):
+            newx = []
+            last = x[cols].values
+            newx.append(last)
+            cl = self.classifier.predict(last.reshape(1, -1))[0]
+
+            grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
+            for d in range(len(cols)):
+                last = x[cols].values
+                for _ in range(0, num):
+                    cl = self.classifier.predict(last.reshape(1, -1))[0]
+                    last[d] -= alpha[d] / num * np.sign(grad[d])
+                    if np.sqrt(np.sum((np.array(last) - instance_to_explain) * (
+                            np.array(last) - instance_to_explain))) > meandist:
+                        break
+                    grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
+                    newx.append(last.copy())
             return np.array(newx)
 
         if fulldf.shape[0] > 0:
-            upsamples = np.concatenate(
-                fulldf.sample(int(self.min_generate_samples * len(fulldf))).apply(perturb, args=(
-                    num, alpha, gradsf, cols),
-                                                                                  axis=1).values)
+            upsamplesa = np.concatenate(
+                fulldf_all.iloc[[0]].apply(perturb, args=(int(len(X_train_sample)), alpha, gradsf, cols),
+                                           axis=1).values)
+
+            # TODO: number of samples should be selected proportionaly to importance
+            upsamplesb = np.concatenate(fulldf_all.iloc[[0]].apply(perturbortho, args=(
+                int(len(X_train_sample) / len(cols)), alpha, gradsf, cols), axis=1).values)
+            upsamples = pd.concat((pd.DataFrame(upsamplesa, columns=X_train_sample.columns),
+                          pd.DataFrame(upsamplesb, columns=X_train_sample.columns), X_train_sample))
         else:
             upsamples = fulldf
 
-        return pd.concat((pd.DataFrame(upsamples, columns=X_train_sample.columns), X_train_sample))
+        return upsamples
 
 
 class UncertainSMOTE(BaseSMOTE):

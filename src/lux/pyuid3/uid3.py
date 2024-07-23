@@ -524,8 +524,8 @@ class UId3(BaseEstimator):
             pure_temp_gain=globalEntropy-temp_gain
             if shap:
                 avg_abs_importance = stats.get_avg_abs_importance()
-                pure_temp_gain_shap = avg_abs_importance
-                temp_gain = pure_temp_gain_shap*pure_temp_gain#((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
+                pure_temp_gain_shap = avg_abs_importance * globalEntropy
+                temp_gain = (pure_temp_gain_shap + beta * pure_temp_gain) / (1 + beta)#((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
             else:
                 temp_gain = conf_for_value*pure_temp_gain
 

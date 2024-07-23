@@ -1,8 +1,9 @@
 Release notes
 =============
 
-1.2.7 (2024-06-17)
+1.2.7 (2024-07-23)
 -------------
+* Improved SHAP-guided sampling
 * Bugfixes in importance samplers
 * Added medoid CF for categorical variables
 * Fixed invalid requirements in build file

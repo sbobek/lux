@@ -614,20 +614,20 @@ class LUX(BaseEstimator):
                                          indstance_to_explain=instance_to_explain,
                                          min_generate_samples=self.min_generate_samples)
                 X_train_sample = isam.fit_transform(X_train_sample)
-                # if categorical is not None and sum(categorical) > 0:
-                #     sm = SMOTENC(categorical_features=categorical)
-                # else:
-                #     sm = SMOTE()
-                #
-                # X_train_sample_np, _ = sm.fit_resample(X_train_sample, self.classifier.predict(X_train_sample))
-                # X_train_sample = pd.DataFrame(X_train_sample_np, columns=X_train_sample.columns)
+
 
             cols = X_train_sample.columns
-            X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(self.neighborhood_size * X_train_sample.shape[0]), X_train_sample.shape[1])) * instance_to_explain))
-            X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
+            preds = np.argmax(self.predict_proba(X_train_sample), axis=1)
+            cl = np.argmax(self.predict_proba(instance_to_explain.reshape(1, -1)))
+            mask = preds == cl
+            diff = len(mask) - len(preds)
+            # if dataset has more instances of opposite class, fill with instance2explain
+            if diff > 0:
+                X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(diff), X_train_sample.shape[1])) * instance_to_explain))
+                X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
 
         if X_importances is not None:
-            return X_train_sample, X_train_sample_importances
+                return X_train_sample, X_train_sample_importances
         else:
             return X_train_sample, None
 
