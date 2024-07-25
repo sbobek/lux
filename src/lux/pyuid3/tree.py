@@ -458,6 +458,10 @@ class Tree:
                 if len(stats) > 0:
                     sns.barplot(data = stats,
                             x=target_column,y='samples', alpha=0.7,palette=palette,ax=ax)
+                else:
+                    sns.heatmap(pd.DataFrame([0]), cbar=False, ax=ax)
+                    ax.set_facecolor('gray')
+                    plt.text(0.5, 0.5, 'Phantom', ha='center', va='center', fontsize=20, color='white', weight='bold')
 
                 if instance2explain is not None:
                     pos = stats[stats[target_column]==instance2explain[target_column].values[0]].index[0]

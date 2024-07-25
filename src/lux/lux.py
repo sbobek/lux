@@ -476,7 +476,7 @@ class LUX(BaseEstimator):
                 X_train_sample_c['distances'] = sklearn.metrics.pairwise_distances(X_train_sample_c[attributes],
                                                                                    Y=nn_instance_to_explain)
                 t = X_train_sample_c[X_train_sample_c['target'] == target_radius].max()
-                X_train_sample = X_train_sample_c[X_train_sample_c['distances'] <= t[0]]
+                X_train_sample = X_train_sample_c[X_train_sample_c['distances'] <= t[0]][X_train_sample.columns]
                 if X_importances is not None:
                     X_train_sample_importances = X_train_sample_importances[
                         (X_train_sample_c['distances'] <= t[0]).values]
@@ -620,10 +620,12 @@ class LUX(BaseEstimator):
             preds = np.argmax(self.predict_proba(X_train_sample), axis=1)
             cl = np.argmax(self.predict_proba(instance_to_explain.reshape(1, -1)))
             mask = preds == cl
-            diff = len(mask) - len(preds)
+            # if class of interest is smaller than other classes, balance it by sampling the instance multiple times
+            diff = len(preds) / len(np.unique(preds)) - sum(mask)
             # if dataset has more instances of opposite class, fill with instance2explain
             if diff > 0:
-                X_train_sample_arr = np.concatenate((X_train_sample, np.ones((int(diff), X_train_sample.shape[1])) * instance_to_explain))
+                X_train_sample_arr = np.concatenate(
+                    (X_train_sample, np.ones((int(diff), X_train_sample.shape[1])) * instance_to_explain))
                 X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
 
         if X_importances is not None:

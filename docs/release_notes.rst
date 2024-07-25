@@ -1,8 +1,11 @@
 Release notes
 =============
 
-1.2.7 (2024-07-23)
+1.2.7 (2024-07-24)
 -------------
+* Fixed class balancing code
+* Added labelling of phantom branches in th leaves
+* Fixed bug with additional columns added when parity=='local'
 * Improved SHAP-guided sampling
 * Bugfixes in importance samplers
 * Added medoid CF for categorical variables
