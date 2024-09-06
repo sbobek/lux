@@ -17,7 +17,7 @@ import numdifftools as nd
 
 class ImportanceSampler(TransformerMixin, BaseEstimator):
 
-    def __init__(self, classifier, predict_proba, indstance_to_explain, min_generate_samples):
+    def __init__(self, classifier, predict_proba, indstance_to_explain, min_generate_samples, process_input=None, categorical=None):
         """
         A transformer class for generating synthetic data using importance sampling based on SHAP values.
 
@@ -35,12 +35,16 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         :param min_generate_samples: int
             The minimum number of synthetic samples to generate.
         :type min_generate_samples: int
-
+        :param process_input: callable, default=None
+            Function that aims in processing the input data before generating synthetic samples.
+        :type process_input: callable
         """
         self.classifier = classifier
         self.predict_proba = predict_proba
-        self.indstance_to_explain = indstance_to_explain
+        self.instance_to_explain = indstance_to_explain
         self.min_generate_samples = min_generate_samples
+        self.process_input = process_input if process_input is not None else lambda x: x
+        self.categorical = categorical
 
     def fit(self, X, y=None):
         """ Fits the transformer by calculating SHAP values for the given dataset.
@@ -57,7 +61,10 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             self: object
                 The fitted transformer instance.
         """
-        self.shap_values = self.__getshap(X)
+        instance_to_explain = self.instance_to_explain.reshape(1, -1)
+        X_train_sample = pd.concat((pd.DataFrame(instance_to_explain, columns=X.columns), X))
+        X_train_sample = self.process_input(X_train_sample)
+        self.shap_values = self.__getshap(X_train_sample)
         return self
 
     def transform(self, X, y=None):
@@ -75,7 +82,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         transformed_data: array-like of shape (n_samples_new, n_features)
             The transformed dataset containing the original samples along with the generated synthetic samples.
         """
-        return self.__importance_sampler(X, self.indstance_to_explain, num=10)
+        return self.__importance_sampler(X, self.instance_to_explain, num=10)
 
     def __getshap(self, X_train_sample):
         """ Calculates SHAP values for the given dataset.
@@ -105,7 +112,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                 expected_values = explainer.expected_value
             else:
                 expected_values = [np.mean(v) for v in shap_values]
-        except TypeError:
+        except:
             explainer = shap.Explainer(self.predict_proba, X_train_sample)
             shap_values = explainer(X_train_sample).values
             shap_values = [sv for sv in np.moveaxis(shap_values, 2, 0)]
@@ -126,9 +133,12 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         :param num:
         :return:
         """
+
+        instance_to_explain = instance_to_explain.reshape(1, -1)
         X_train_sample = pd.concat((pd.DataFrame(instance_to_explain, columns=X_train_sample.columns), X_train_sample))
+
         shap_values, _ = self.shap_values
-        indexer = self.classifier.predict(X_train_sample)
+        indexer = self.classifier.predict(self.process_input(X_train_sample))
         shapclass = []
 
         for i in range(0, len(X_train_sample)):
@@ -136,8 +146,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             best_index = indexer[i]
             if isinstance(shap_values, list):
                 shapclass.append([shap_values[best_index][i, :]])
-            else:
-                print(shap_values.shape)
+
         shapclass = np.concatenate(shapclass)
         shapcols = [c + '_shap' for c in X_train_sample.columns]
         cols = [c for c in X_train_sample.columns]
@@ -148,8 +157,8 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         fulldf.index = X_train_sample.index
         fulldf_all = pd.concat([X_train_sample.reset_index(drop=True), shapdf.reset_index(drop=True)], axis=1)
         fulldf_all.index = X_train_sample.index
-        class_of_i2e = self.classifier.predict(instance_to_explain.reshape(1, -1))
-        predictions = self.classifier.predict(fulldf_all[cols])
+        class_of_i2e = self.classifier.predict(self.process_input(instance_to_explain.reshape(1, -1)))
+        predictions = self.classifier.predict(self.process_input(fulldf_all[cols]))
         fulldf = fulldf_all
         gradsf = {}
 
@@ -177,7 +186,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             newx = []
             last = x[cols].values
             newx.append(last)
-            cl = self.classifier.predict(last.reshape(1, -1))[0]
+            cl = self.classifier.predict(self.process_input(last.reshape(1, -1)))[0]
 
             grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
             for _ in range(0, num):
@@ -194,13 +203,13 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             newx = []
             last = x[cols].values
             newx.append(last)
-            cl = self.classifier.predict(last.reshape(1, -1))[0]
+            cl = self.classifier.predict(self.process_input(last.reshape(1, -1)))[0]
 
             grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
             for d in range(len(cols)):
                 last = x[cols].values
                 for _ in range(0, num):
-                    cl = self.classifier.predict(last.reshape(1, -1))[0]
+                    cl = self.classifier.predict(self.process_input(last.reshape(1, -1)))[0]
                     last[d] -= alpha[d] / num * np.sign(grad[d])
                     if np.sqrt(np.sum((np.array(last) - instance_to_explain) * (
                             np.array(last) - instance_to_explain))) > meandist:
@@ -231,6 +240,7 @@ class UncertainSMOTE(BaseSMOTE):
             self,
             *,
             predict_proba,
+            process_input=None,
             sampling_strategy="all",
             random_state=None,
             k_neighbors=5,
@@ -239,14 +249,12 @@ class UncertainSMOTE(BaseSMOTE):
             m_neighbors=10,
             min_samples=0.1,
             instance_to_explain=None,
-            kind="borderline-1",
+            kind="borderline-1"
+
     ):
         """An implementation of Synthetic Minority Over-sampling Technique (SMOTE) with handling of uncertain samples.
             Parameters:
             -----------
-            :param predict_proba: callable
-                A function returning probability estimates for samples.
-            :type predict_proba: callable
             :param sampling_strategy: float, str, dict, or callable, default='all'
                 The sampling strategy to use. Can be a float representing the desired ratio of minority class samples over
                 the majority class samples after resampling, or one of {'all', 'not minority', 'minority'}. Alternatively, it
@@ -294,10 +302,11 @@ class UncertainSMOTE(BaseSMOTE):
         )
         self.m_neighbors = m_neighbors
         self.kind = kind
-        self.predict_proba = predict_proba
         self.sigma = sigma
         self.min_samples = min_samples
         self.instance_to_explain = instance_to_explain
+        self.process_input = process_input if process_input is not None else lambda x: x
+        self.predict_proba = predict_proba
 
     def _fit_resample(self, X, y):
         """
@@ -334,7 +343,7 @@ class UncertainSMOTE(BaseSMOTE):
             # self.nn_m_.fit(X)
             danger_index = self._in_danger_noise(
                 # self.nn_m_,
-                self.predict_proba,
+                lambda x: self.predict_proba(self.process_input(x)),
                 X_class, class_sample, y, kind="danger"
             )
             if not any(danger_index):
@@ -417,8 +426,8 @@ class UncertainSMOTE(BaseSMOTE):
         :return: ndarray of shape (n_samples,). A boolean array where True refer to samples in danger or noise.
         """
 
-        c_labels = samples[np.argmax(self.predict_proba(samples), axis=1) == target_class]
-        prediction_certainty = np.max(self.predict_proba(c_labels), axis=1)
+        c_labels = samples[np.argmax(predict_proba(samples), axis=1) == target_class]
+        prediction_certainty = np.max(predict_proba(c_labels), axis=1)
 
         # shuld this be thresholded like that, or keep n-lowest?
         confidence_threshold = np.mean(prediction_certainty) - self.sigma * np.std(

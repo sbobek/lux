@@ -137,8 +137,7 @@ class UId3(BaseEstimator):
             for i,v in enumerate(shap_values):
                 shap_dict[str(i)] = pd.DataFrame(v, columns = datadf.columns[:-1])
                 expected_dict[str(i)] = expected_values[i] #/maxshap #ADD
-                
-            data = data.set_importances(pd.concat(shap_dict,axis=1), expected_values = expected_dict)
+            data = data.set_importances(pd.concat(shap_dict,axis=1).fillna(0), expected_values = expected_dict)
         
         if len(data.get_instances()) < self.NODE_SIZE_LIMIT:
             return None
@@ -203,7 +202,7 @@ class UId3(BaseEstimator):
                     info_gain = temp_gain
                     pure_info_gain=pure_temp_gain
                     best_split = best_split_candidate
-        
+
         ###########################################
         #if there is a shap
         if oblique:
@@ -227,8 +226,7 @@ class UId3(BaseEstimator):
                 pure_info_gain=pure_svm_temp_gain
                 best_split = svm_best_splitting_att
                 best_split.set_value_to_split_on(boundary_expression)
-        
-    
+
         ###########################################
         
         # if nothing better can happen

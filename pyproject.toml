@@ -16,7 +16,7 @@ classifiers = [
 ]
 keywords = ["xai", "explainability", "model-agnostic", "rule-based"]
 dependencies = ["pandas>=1.4.3",
-    "numpy>=1.22.4",
+    "numpy>=1.22.4, <=1.23.5",
     "scikit-learn>=1.1.1",
     "matplotlib>=3.5.2",
     "matplotlib-inline>=0.1.3",

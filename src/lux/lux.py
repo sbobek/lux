@@ -103,11 +103,13 @@ class LUX(BaseEstimator):
         if classifier is None:
             self.oversampling_strategy = self.OS_STRATEGY_SMOTE
 
+    # write a getter for classifier
+
     def fit(self, X, y, instance_to_explain, X_importances=None, exclude_neighbourhood=False, use_parity=True,
             parity_strategy='global', inverse_sampling=True, class_names=None, discount_importance=False,
             uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1, representative='centroid',
-            density_sampling=False, radius_sampling=False, oversampling=False, categorical=None, prune=True,
-            oblique=False, n_jobs=None):
+            density_sampling=False, radius_sampling=False, oversampling=True, categorical=None, prune=True,
+            oblique=True, n_jobs=None):
         """ Fit the LUX explainer model.
 
         :param X:
@@ -278,7 +280,8 @@ class LUX(BaseEstimator):
             if not isinstance(X_importances, pd.DataFrame):
                 raise ValueError('Feature importance matrix has to be DataFrame.')
 
-        X_train_sample, X_train_sample_importances = self.create_sample_bb(X, np.argmax(self.predict_proba(X), axis=1),
+        X_train_sample, X_train_sample_importances = self.create_sample_bb(X, np.argmax(
+            self.predict_proba(self.process_input(X)), axis=1),
                                                                            boundiong_box_points,
                                                                            X_importances=X_importances,
                                                                            exclude_neighbourhood=exclude_neighbourhood,
@@ -292,7 +295,7 @@ class LUX(BaseEstimator):
                                                                            parity_strategy=parity_strategy,
                                                                            oversampling=oversampling,
                                                                            categorical=categorical)
-        y_train_sample = self.predict_proba(X_train_sample)
+        #y_train_sample = self.predict_proba(self.process_input(X_train_sample))
         # limit features here
 
         # threshold_proba = np.max(self.predict_proba(boundiong_box_points))
@@ -301,13 +304,13 @@ class LUX(BaseEstimator):
         # X_train_sample = X_train_sample[proball >= threshold]
 
         # no proba predictor
-        y_train_sample_proba = self.predict_proba(X_train_sample)
+        y_train_sample_proba = self.predict_proba(self.process_input(X_train_sample))
         hot = np.argmax(y_train_sample_proba, axis=1)
         y_train_sample = np.zeros(y_train_sample_proba.shape)
         for i in range(0, len(y_train_sample)):
             y_train_sample[i, hot[i]] = 1
 
-        uarff = LUX.generate_uarff(X_train_sample, y_train_sample, X_importances=X_train_sample_importances,
+        uarff = LUX.generate_uarff(self.process_input(X_train_sample), y_train_sample, X_importances=X_train_sample_importances,
                                    categorical=categorical, class_names=class_names)
         self.data = Data.parse_uarff_from_string(uarff)
 
@@ -323,6 +326,7 @@ class LUX(BaseEstimator):
             self.tree = self.uid3.fit(self.data, entropyEvaluator=uncertain_entropy_evaluator, depth=0,
                                       discount_importance=discount_importance, beta=beta, prune=prune, oblique=oblique,
                                       n_jobs=n_jobs)
+        return X_train_sample, y_train_sample
 
     def create_sample_bb(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
@@ -391,7 +395,8 @@ class LUX(BaseEstimator):
         if use_parity:
             for instance_to_explain in boundiong_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
-                instance_class = np.argmax(self.predict_proba(np.array(instance_to_explain).reshape(1, -1)))
+                instance_class = np.argmax(
+                    self.predict_proba(self.process_input(np.array(instance_to_explain).reshape(1, -1))))
                 class_names_instance_last = [c for c in class_names if c not in [instance_class]] + [instance_class]
                 neighbourhoods_bbox = []
                 importances_bbox = []
@@ -430,9 +435,9 @@ class LUX(BaseEstimator):
                         has_njobs = 'n_jobs' in signature.parameters
                         if has_njobs:
                             ids_c = \
-                            gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
-                                             n=nn.n_neighbors,
-                                             n_jobs=n_jobs)['index']
+                                gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                                 n=nn.n_neighbors,
+                                                 n_jobs=n_jobs)['index']
                         else:
                             ids_c = \
                                 gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
@@ -462,11 +467,13 @@ class LUX(BaseEstimator):
             if parity_strategy == 'local':
                 X_train_sample_c = X_train_sample.copy()
                 attributes = [a for a in X_train_sample]
-                X_train_sample_c['target'] = np.argmax(self.predict_proba(X_train_sample_c), axis=1)
+                X_train_sample_c['target'] = np.argmax(self.predict_proba(self.process_input(X_train_sample_c)), axis=1)
                 representations = X_train_sample_c.groupby('target').agg(np.median)
-                representations['target'] = np.argmax(self.predict_proba(representations[attributes]))
+                representations['target'] = np.argmax(
+                    self.predict_proba(self.process_input(representations[attributes])))
                 prototypes = representations[
-                    representations['target'] != np.argmax(self.predict_proba(nn_instance_to_explain), axis=1)[0]][
+                    representations['target'] !=
+                    np.argmax(self.predict_proba(self.process_input(nn_instance_to_explain)), axis=1)[0]][
                     attributes]
                 # find distances from instance to representatives
                 prototypes['distances'] = sklearn.metrics.pairwise_distances(prototypes[attributes],
@@ -500,11 +507,13 @@ class LUX(BaseEstimator):
                     signature = inspect.signature(gower.gower_topn)
                     has_njobs = 'n_jobs' in signature.parameters
                     if has_njobs:
-                        ids_c =  gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
+                        ids_c = \
+                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
                                          n_jobs=n_jobs)['index']
                     else:
                         ids_c = \
-                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors)['index']
+                            gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                             n=nn.n_neighbors)['index']
                 else:
                     _, ids_c = nn.kneighbors(nn_instance_to_explain)
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
@@ -559,7 +568,8 @@ class LUX(BaseEstimator):
                     has_njobs = 'n_jobs' in signature.parameters
                     if has_njobs:
                         distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
-                                                   X_train_sample.iloc[:, ], cat_features=categorical, n_jobs=n_jobs)
+                                                       X_train_sample.iloc[:, ], cat_features=categorical,
+                                                       n_jobs=n_jobs)
                     else:
                         distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
                                                        X_train_sample.iloc[:, ], cat_features=categorical)
@@ -571,8 +581,9 @@ class LUX(BaseEstimator):
                 signature = inspect.signature(gower.gower_topn)
                 has_njobs = 'n_jobs' in signature.parameters
                 if has_njobs:
-                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1), X_train_sample.iloc[:, ],
-                                               cat_features=categorical, n_jobs=n_jobs)
+                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                   X_train_sample.iloc[:, ],
+                                                   cat_features=categorical, n_jobs=n_jobs)
                 else:
                     distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
                                                    X_train_sample.iloc[:, ],
@@ -604,7 +615,8 @@ class LUX(BaseEstimator):
                 instance_to_explain = boundiong_box_points[0]
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
                                          indstance_to_explain=instance_to_explain,
-                                         min_generate_samples=self.min_generate_samples)
+                                         min_generate_samples=self.min_generate_samples,process_input=self.process_input,
+                                         categorical=self.categorical)
                 X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
                 instance_to_explain = boundiong_box_points[0]
@@ -612,13 +624,13 @@ class LUX(BaseEstimator):
                                                          instance_to_explain=instance_to_explain)
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
                                          indstance_to_explain=instance_to_explain,
-                                         min_generate_samples=self.min_generate_samples)
+                                         min_generate_samples=self.min_generate_samples,process_input=self.process_input,
+                                         categorical=self.categorical)
                 X_train_sample = isam.fit_transform(X_train_sample)
 
-
             cols = X_train_sample.columns
-            preds = np.argmax(self.predict_proba(X_train_sample), axis=1)
-            cl = np.argmax(self.predict_proba(instance_to_explain.reshape(1, -1)))
+            preds = np.argmax(self.predict_proba(self.process_input(X_train_sample)), axis=1)
+            cl = np.argmax(self.predict_proba(self.process_input(instance_to_explain.reshape(1, -1))))
             mask = preds == cl
             # if class of interest is smaller than other classes, balance it by sampling the instance multiple times
             diff = len(preds) / len(np.unique(preds)) - sum(mask)
@@ -629,9 +641,44 @@ class LUX(BaseEstimator):
                 X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
 
         if X_importances is not None:
-                return X_train_sample, X_train_sample_importances
+            return X_train_sample, X_train_sample_importances
         else:
             return X_train_sample, None
+
+    def process_and_predict_proba(self, X):
+        """
+        Process the input data and predict the probabilities.
+
+        :param X: data that will be passed to predict_proba function after preprocessing.
+        :return: probabilities, in the same format as prodict_proba
+        """
+        return self.predict_proba(self.process_input(X))
+
+    def process_input(self, X):
+        """
+        The main goal is to change the type of categorical values, so they fit algorithms that require categories as integers
+        :param X: data that will be passed to predict_proba function after preprocessing.
+        :return: preprocessed data with the same dimensions as the input one, but with changed categorical columns to integers
+        """
+
+        # Convert X to a pandas DataFrame if it's a NumPy array
+        if self.categorical is None:
+            return X
+        if isinstance(X, np.ndarray):
+            X = pd.DataFrame(X)
+
+        elif not isinstance(X, pd.DataFrame):
+            raise TypeError("X should be either a numpy array or a pandas DataFrame")
+
+        X.columns = self.attributes_names
+
+        # Iterate over each column and corresponding indicator
+        for i, is_categorical in enumerate(self.categorical):
+            if is_categorical:
+                # Convert the column to int
+                X[self.attributes_names[i]] = X[self.attributes_names[i]].round().astype(int)
+
+        return X
 
     def __oversample_smote(self, X_train_sample, sigma=1, iterations=1, instance_to_explain=None, categorical=None):
         """ Generate samples based on their uncertainty.
@@ -647,9 +694,10 @@ class LUX(BaseEstimator):
             try:
                 sm = UncertainSMOTE(predict_proba=self.predict_proba, sigma=sigma, sampling_strategy='all',
                                     min_samples=self.min_generate_samples,
-                                    instance_to_explain=instance_to_explain)
+                                    instance_to_explain=instance_to_explain,process_input=self.process_input)
                 X_train_sample, _ = sm.fit_resample(X_train_sample,
-                                                    np.argmax(self.predict_proba(X_train_sample), axis=1))
+                                                    np.argmax(self.predict_proba(self.process_input(X_train_sample)),
+                                                              axis=1))
             except:
                 warnings.warn("WARNING: Selected class has low number of borderline points.")
 
@@ -692,7 +740,8 @@ class LUX(BaseEstimator):
                     signature = inspect.signature(gower.gower_topn)
                     has_njobs = 'n_jobs' in signature.parameters
                     if has_njobs:
-                        ids = gower.gower_topn(nn_instance_to_explain, data, n=1, cat_features=categorical, n_jobs=n_jobs)[
+                        ids = \
+                        gower.gower_topn(nn_instance_to_explain, data, n=1, cat_features=categorical, n_jobs=n_jobs)[
                             'index']
                     else:
                         ids = gower.gower_topn(nn_instance_to_explain, data, n=1, cat_features=categorical)[
@@ -789,7 +838,7 @@ class LUX(BaseEstimator):
         if rule == {}:
             return 0, 0
         for i, v in rule.items():
-            op = '' #if dict(zip(features, categorical))[i] == False else '=='
+            op = ''  # if dict(zip(features, categorical))[i] == False else '=='
             query.append(f'{i}{op}' + f'and {i}{op}'.join(v))
 
         covered = dataset.query(' and '.join(query))
@@ -807,9 +856,9 @@ class LUX(BaseEstimator):
         :param n_jobs:
         :return:
         """
-        not_class = np.argmax(self.predict_proba(instance_to_explain))
+        not_class = np.argmax(self.predict_proba(self.process_input(instance_to_explain)))
         rules = self.uid3.tree.to_dict(reduce=reduce)
-        bbox_predictions = np.argmax(self.predict_proba(background), axis=1)
+        bbox_predictions = np.argmax(self.predict_proba(self.process_input(background)), axis=1)
         lux_predictions = self.predict(background)
         background = background[(bbox_predictions == lux_predictions)]
         # filter out rules with class same as not_class
@@ -850,7 +899,7 @@ class LUX(BaseEstimator):
                                                         cat_features=self.categorical, n_jobs=n_jobs)
                         else:
                             ids_dist = gower.gower_topn(instance_to_explain, rule['covered'], n=1,
-                                                    cat_features=self.categorical)
+                                                        cat_features=self.categorical)
                         representative_sample = rule['covered'].iloc[ids_dist['index'].ravel()[0]]
                         rule['counterfactual'] = representative_sample
                         dist = ids_dist['values']
@@ -872,17 +921,19 @@ class LUX(BaseEstimator):
         else:
             return counterfactual_rules[:topn]
 
-    def visualize(self, data, target_column_name='class',instance2explain=None, counterfactual=None, filename='tree.dot'):
+    def visualize(self, data, target_column_name='class', instance2explain=None, counterfactual=None,
+                  filename='tree.dot'):
         if counterfactual is not None:
             cfdf = pd.DataFrame(counterfactual['counterfactual']).T
-            cfdf[target_column_name] = np.argmax(self.predict_proba(cfdf.values.reshape(1, -1))[0])
+            cfdf[target_column_name] = np.argmax(self.predict_proba(self.process_input(cfdf.values.reshape(1, -1)))[0])
         else:
-            cfdf=None
+            cfdf = None
         if instance2explain is not None:
             i2edf = pd.DataFrame(instance2explain, columns=self.attributes_names)
-            i2edf[target_column_name] = np.argmax(self.predict_proba(i2edf.values.reshape(1, -1))[0])
+            i2edf[target_column_name] = np.argmax(
+                self.predict_proba(self.process_input(i2edf.values.reshape(1, -1)))[0])
         else:
-            i2edf=None
+            i2edf = None
         self.uid3.tree.save_dot(filename, fmt='.2f', visual=True, background_data=data, instance2explain=i2edf,
                                 counterfactual=cfdf)
 

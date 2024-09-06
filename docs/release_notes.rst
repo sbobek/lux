@@ -1,10 +1,11 @@
 Release notes
 =============
 
-1.2.7 (2024-07-24)
+1.3.0 (2024-09-06)
 -------------
+* Fixed catBoost problem and minor visualization bugs
 * Fixed class balancing code
-* Added labelling of phantom branches in th leaves
+* Added labelling of phantom branches in the leaves
 * Fixed bug with additional columns added when parity=='local'
 * Improved SHAP-guided sampling
 * Bugfixes in importance samplers
