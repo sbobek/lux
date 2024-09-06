@@ -1,8 +1,17 @@
 Release notes
 =============
 
-1.2.1 (2024-05-17)
+1.3.0 (2024-09-06)
 -------------
+* Fixed catBoost problem and minor visualization bugs
+* Fixed class balancing code
+* Added labelling of phantom branches in the leaves
+* Fixed bug with additional columns added when parity=='local'
+* Improved SHAP-guided sampling
+* Bugfixes in importance samplers
+* Added medoid CF for categorical variables
+* Fixed invalid requirements in build file
+* gower replaced with gower-multiprocessing
 * Fixed visualization issue when no instance nor counterfactual is passed.
 * Fixed issue with categorical variables.
 * Fixed with gower installed without multiprocessing

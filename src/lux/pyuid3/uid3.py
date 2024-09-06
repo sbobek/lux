@@ -137,8 +137,7 @@ class UId3(BaseEstimator):
             for i,v in enumerate(shap_values):
                 shap_dict[str(i)] = pd.DataFrame(v, columns = datadf.columns[:-1])
                 expected_dict[str(i)] = expected_values[i] #/maxshap #ADD
-                
-            data = data.set_importances(pd.concat(shap_dict,axis=1), expected_values = expected_dict)
+            data = data.set_importances(pd.concat(shap_dict,axis=1).fillna(0), expected_values = expected_dict)
         
         if len(data.get_instances()) < self.NODE_SIZE_LIMIT:
             return None
@@ -203,7 +202,7 @@ class UId3(BaseEstimator):
                     info_gain = temp_gain
                     pure_info_gain=pure_temp_gain
                     best_split = best_split_candidate
-        
+
         ###########################################
         #if there is a shap
         if oblique:
@@ -227,8 +226,7 @@ class UId3(BaseEstimator):
                 pure_info_gain=pure_svm_temp_gain
                 best_split = svm_best_splitting_att
                 best_split.set_value_to_split_on(boundary_expression)
-        
-    
+
         ###########################################
         
         # if nothing better can happen
@@ -473,7 +471,7 @@ class UId3(BaseEstimator):
                 #to prevent from 0-division
                 single_temp_gain=0
             else:
-                single_temp_gain =(beta*pure_single_temp_gain_shap*pure_single_temp_gain)/(1+beta)#((1+beta**2)*pure_single_temp_gain_shap*pure_single_temp_gain)/((beta**2*pure_single_temp_gain_shap)+pure_single_temp_gain)*conf_for_value
+                single_temp_gain =(beta*pure_single_temp_gain_shap*pure_single_temp_gain)/(1+beta)
         else:
             pure_single_temp_gain = (globalEntropy - (stat_for_lt_value*entropyEvaluator.calculate_entropy(subdata_less_than)+
                                                                                    (stat_for_gte_value)*entropyEvaluator.calculate_entropy(subdata_greater_equal) ))
@@ -524,8 +522,8 @@ class UId3(BaseEstimator):
             pure_temp_gain=globalEntropy-temp_gain
             if shap:
                 avg_abs_importance = stats.get_avg_abs_importance()
-                pure_temp_gain_shap = avg_abs_importance
-                temp_gain = pure_temp_gain_shap*pure_temp_gain#((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
+                pure_temp_gain_shap = avg_abs_importance * globalEntropy
+                temp_gain = (pure_temp_gain_shap + beta * pure_temp_gain) / (1 + beta)#((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
             else:
                 temp_gain = conf_for_value*pure_temp_gain
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lux-explainer"
-version = "1.2.0"
+version = "1.3.0"
 description = "Universal Local Rule-based Explainer"
 readme = "README.md"
 authors = [{ name = "Szymon Bobek", email = "szymon.bobek@gmail.com" }]
@@ -16,7 +16,7 @@ classifiers = [
 ]
 keywords = ["xai", "explainability", "model-agnostic", "rule-based"]
 dependencies = ["pandas>=1.4.3",
-    "numpy>=1.22.4",
+    "numpy>=1.22.4, <=1.23.5",
     "scikit-learn>=1.1.1",
     "matplotlib>=3.5.2",
     "matplotlib-inline>=0.1.3",
@@ -26,7 +26,7 @@ dependencies = ["pandas>=1.4.3",
     "lime>=0.2.0.1",
     "anchor-exp>=0.0.2.0",
     "imbalanced-learn>=0.9.1",
-    "gower>=0.1.2",
+    "gower-multiprocessing>=0.2.2",
     "numdifftools>=0.9.41"
 ]
 requires-python = ">=3.8"

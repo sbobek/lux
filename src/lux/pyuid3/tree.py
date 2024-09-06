@@ -62,7 +62,7 @@ class Tree:
             new_node = None
             for te in test_node.get_edges():
                 if test_node.get_type() == Attribute.TYPE_NOMINAL:
-                    if te.get_value().get_name() == most_probable.get_name():
+                    if eval(f'{te.get_value().get_name()} == {most_probable.get_name()}'):
                         new_node = te.get_child()
                         te_copy = te.copy()
                         temp_root.set_edges([te_copy])
@@ -455,9 +455,13 @@ class Tree:
                     background_data = pd.concat((counterfactual,background_data))
                 background_data[target_column] = background_data[target_column].astype(str)
                 stats = background_data[[target_column]].value_counts().to_frame('samples').sort_index().reset_index()
-
-                sns.barplot(data = stats,
-                            x=target_column,y='samples', alpha=0.7,palette=palette,ax=ax)
+                if len(stats) > 0:
+                    sns.barplot(data = stats,
+                            x=target_column,y='samples', alpha=0.7,palette=palette,hue=target_column,ax=ax)
+                else:
+                    sns.heatmap(pd.DataFrame([0]), cbar=False, ax=ax)
+                    ax.set_facecolor('gray')
+                    plt.text(0.5, 0.5, 'Phantom', ha='center', va='center', fontsize=20, color='white', weight='bold')
 
                 if instance2explain is not None:
                     pos = stats[stats[target_column]==instance2explain[target_column].values[0]].index[0]
@@ -466,18 +470,23 @@ class Tree:
                     pos = stats[stats[target_column]==counterfactual[target_column].values[0]].index[0]
                     ax.plot(pos,1, 'ob', markersize=8)
 
-                for container, label in zip(ax.containers, [f'{l:.2f}%' for l in list(
-                        background_data[[target_column]].value_counts(normalize=True).sort_index() * 100)]):
-                    ax.text(container[-1].get_x() + container[-1].get_width() / 2, container[-1].get_height() / 2,
-                            label, ha='center', va='center')
+                if len(stats) > 0:
+                    for patch, label in zip(ax.patches, [f'{l:.2f}%' for l in list(
+                            background_data[[target_column]].value_counts(normalize=True).sort_index() * 100)]):
+                        ax.annotate(label,
+                                    (patch.get_x() + patch.get_width() / 2., patch.get_height() / 2),
+                                    ha='center', va='center')
                 plt.savefig(f'{path}/imgs/{hash(parent)}.{file_format}', format=file_format,bbox_inches='tight')
                 plt.close()
                 result += f"{hash(parent)}[label=\"\",shape=box, color={col},image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"
 
             has_plotted=False
             for te in parent.get_edges():
-
-                sibling_data = background_data.query(parent.get_att()+' '+te.get_value().get_name())
+                if parent.get_type() == Attribute.TYPE_NUMERICAL:
+                    op=''
+                else:
+                    op='=='
+                sibling_data = background_data.query(parent.get_att()+f'{op}'+te.get_value().get_name())
                                                      
                 if not has_plotted and not parent.is_leaf():
                     result += f"{hash(parent)}[label=\"\",shape=box, color={col}, image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"
@@ -522,10 +531,10 @@ class Tree:
                 sibling_instance2explain=instance2explain
                 sibling_counterfactual=counterfactual
                 if instance2explain is not None:
-                    if len(instance2explain.query(parent.get_att()+' '+te.get_value().get_name())) == 0:
+                    if len(instance2explain.query(parent.get_att()+f'{op}'+te.get_value().get_name())) == 0:
                         sibling_instance2explain=None 
                 if counterfactual is not None:
-                    if len(counterfactual.query(parent.get_att()+' '+te.get_value().get_name())) == 0:
+                    if len(counterfactual.query(parent.get_att()+f'{op}'+te.get_value().get_name())) == 0:
                         sibling_counterfactual=None 
                 result += self.to_dot_visual(parent=te.get_child(),background_data=sibling_data,
                                             instance2explain=sibling_instance2explain, 
