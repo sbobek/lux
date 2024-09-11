@@ -1,6 +1,10 @@
 Release notes
 =============
 
+1.3.1 (2024-09-11)
+-------------
+* Fixes in dependencies
+
 1.3.0 (2024-09-06)
 -------------
 * Fixed catBoost problem and minor visualization bugs
