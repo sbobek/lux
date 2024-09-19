@@ -972,7 +972,7 @@ class LUX(BaseEstimator):
 
         uarff = "@relation lux\n\n"
         for i, (f, t) in enumerate(zip(X.columns, X.dtypes)):
-            if t in (int, float, np.int32, np.int64) and not categorical[i]:
+            if t in (int, float, np.integer, np.floating) and not categorical[i]:
                 uarff += f'@attribute {f} @REAL\n'
             elif categorical[i]:
                 domain = ','.join(map(str, list(X[f].unique())))
