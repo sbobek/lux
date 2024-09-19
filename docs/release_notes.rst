@@ -1,9 +1,10 @@
 Release notes
 =============
 
-1.3.1 (2024-09-11)
+1.3.2 (2024-09-11)
 -------------
 * Fixes in dependencies
+* Fixes in numpy float representation of dataframes read from UARFF
 
 1.3.0 (2024-09-06)
 -------------

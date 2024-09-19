@@ -15,6 +15,7 @@ import gower_multiprocessing as gower
 import numpy as np
 import warnings
 import inspect
+import pandas.api.types as ptypes
 
 from lux.samplers import ImportanceSampler
 
@@ -326,7 +327,7 @@ class LUX(BaseEstimator):
             self.tree = self.uid3.fit(self.data, entropyEvaluator=uncertain_entropy_evaluator, depth=0,
                                       discount_importance=discount_importance, beta=beta, prune=prune, oblique=oblique,
                                       n_jobs=n_jobs)
-        return X_train_sample, y_train_sample
+        return self
 
     def create_sample_bb(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
@@ -972,7 +973,7 @@ class LUX(BaseEstimator):
 
         uarff = "@relation lux\n\n"
         for i, (f, t) in enumerate(zip(X.columns, X.dtypes)):
-            if t in (int, float, np.int32, np.int64) and not categorical[i]:
+            if ptypes.is_integer_dtype(t) or ptypes.is_float_dtype(t) and not categorical[i]:
                 uarff += f'@attribute {f} @REAL\n'
             elif categorical[i]:
                 domain = ','.join(map(str, list(X[f].unique())))
