@@ -46,6 +46,7 @@ jupyter lab
 **Caution**: If you want to use LUX with categorical data, it is advised to use [multiprocessing gower distance](https://github.com/sbobek/gower/tree/add-multiprocessing) package (due to high computational complexity of the problem). 
 
 ## Usage
+**Note**: Your output may differ from the example below, depending on the instance to explain that is selected, as LUX is local explainer.
 
   * For online working example (basic usage), see [Colab basic usage example](https://colab.research.google.com/drive/123h5BdTfOK7adhe8nvvd7UPtNPBIuTgL?usp=sharing)
   * For complete usage see [lux_usage_example.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example.ipynb)
