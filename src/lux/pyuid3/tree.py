@@ -317,7 +317,7 @@ class Tree:
         if visual:
             if background_data is not None:
                 if instance2explain is not None and not isinstance(instance2explain, pd.DataFrame):
-                    counterfactual=pd.DataFrame(instance2explain)
+                    instance2explain=pd.DataFrame(instance2explain)
                 if counterfactual is not None and not isinstance(counterfactual, pd.DataFrame):
                     counterfactual=pd.DataFrame(counterfactual)
             f.write(self.to_dot_visual(parent=None, fmt=fmt, background_data=background_data,
