@@ -792,10 +792,8 @@ class LUX(BaseEstimator):
             X = pd.DataFrame(X, columns=self.attributes_names)
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
-        import time
-        start = time.time()
+
         XData = Data.parse_dataframe(X, name='lux')
-        print(time.time() - start)
 
         return [int(f['name']) for f in self.uid3.predict(XData.get_instances())]
 
