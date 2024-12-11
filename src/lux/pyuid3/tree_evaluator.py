@@ -73,7 +73,7 @@ class TreeEvaluator:
         def get_class_label(self) -> str:
             return self.class_label
 
-        def set_class_label(class_label: str) -> None:
+        def set_class_label(self, class_label: str) -> None:
             self.class_label = class_label
 
         def get_TP(self) -> float:
@@ -198,12 +198,12 @@ class TreeEvaluator:
 
         for i in test_data.get_instances():
             prediction = trained_tree.predict(i)
-            error =  not prediction.get_most_probable().get_name() == i.get_readings()[-1].get_most_probable().get_name()
-            result.add_prediction(TreeEvaluator.Prediction(prediction, i.get_readings()[-1].get_most_probable().get_name()))
+            error =  not prediction['most_probable']['name'] == i['readings'][-1]['most_probable']['name']
+            result.add_prediction(TreeEvaluator.Prediction(prediction, i['readings'][-1]['most_probable']['name']))
             if error:
                 #give false positive to predicted class, false negative to real class, and true negatives to other
-                predicted_name = prediction.get_most_probable().get_name()
-                real_name = i.get_readings()[-1].get_most_probable().get_name()
+                predicted_name = prediction['most_probable']['name']
+                real_name = i['readings'][-1]['most_probable']['name']
                 result.add_FP(predicted_name)
                 result.add_FN(real_name)
                 for s in result.stats:
@@ -212,7 +212,7 @@ class TreeEvaluator:
                 result.incorrect += 1
             else:
                 #add true positive for predicted class, and true negatives for other
-                predicted_name = prediction.get_most_probable().get_name()
+                predicted_name = prediction['most_probable']['name']
                 result.add_TP(predicted_name)
                 for s in result.stats:
                     if not s.class_label == predicted_name:

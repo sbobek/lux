@@ -9,6 +9,7 @@ from lux.pyuid3.entropy_evaluator import UncertainEntropyEvaluator
 from lux.pyuid3.uid3 import UId3
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import OPTICS
+import re
 import shap
 import sklearn
 import gower_multiprocessing as gower
@@ -311,9 +312,9 @@ class LUX(BaseEstimator):
         for i in range(0, len(y_train_sample)):
             y_train_sample[i, hot[i]] = 1
 
-        uarff = LUX.generate_uarff(self.process_input(X_train_sample), y_train_sample, X_importances=X_train_sample_importances,
-                                   categorical=categorical, class_names=class_names)
-        self.data = Data.parse_uarff_from_string(uarff)
+        X_train_sample['class'] = pd.Series(hot, index=X_train_sample.index)
+
+        self.data = Data.parse_dataframe(X_train_sample, X_train_sample_importances)
 
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit,
                          grow_confidence_threshold=self.grow_confidence_threshold,
@@ -791,14 +792,12 @@ class LUX(BaseEstimator):
             X = pd.DataFrame(X, columns=self.attributes_names)
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
+        import time
+        start = time.time()
+        XData = Data.parse_dataframe(X, name='lux')
+        print(time.time() - start)
 
-        if y is None:
-            y = pd.Series(np.arange(X.shape[0]), name='target_unused',
-                          index=X.index)  # This is not used, but Data resered last
-
-        X = pd.concat((X, y), axis=1)
-        XData = Data.parse_dataframe(X, 'lux')
-        return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
+        return [int(f['name']) for f in self.uid3.predict(XData.get_instances())]
 
     def justify(self, X, to_dict=False, reduce=True):
         """Traverse down the path for given x.
@@ -814,10 +813,7 @@ class LUX(BaseEstimator):
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
 
-        y = pd.Series(np.arange(X.shape[0]), name='target_unused',
-                      index=X.index)  # This is not used, but Data resered last
-        X = pd.concat((X, y), axis=1)
-        XData = Data.parse_dataframe(X, 'lux')
+        XData = Data.parse_dataframe(X, name='lux')
 
         if to_dict:
             return [self.uid3.tree.justification_tree(i).to_dict(reduce=reduce) for i in XData.get_instances()]
@@ -840,9 +836,17 @@ class LUX(BaseEstimator):
             return 0, 0
         for i, v in rule.items():
             op = ''  # if dict(zip(features, categorical))[i] == False else '=='
-            query.append(f'{i}{op}' + f'and {i}{op}'.join(v))
+            query.append(f'{i}{op}' + f' and {i}{op}'.join(v))
+        
+        pattern = r'\b[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*(?:\s[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*)*\b'
+        query = ' and '.join(query)
+        all_names = set(re.findall(pattern, query.replace("and", "")))
+        
+        for name in all_names:
+            new = '`' + name + '`'
+            query = query.replace(name, new)
 
-        covered = dataset.query(' and '.join(query))
+        covered = dataset.query(query)
         return covered
 
     def counterfactual(self, instance_to_explain, background, counterfactual_representative='medoid', reduce=True,
@@ -944,50 +948,3 @@ class LUX(BaseEstimator):
         :return:
         """
         return self.tree.to_HMR()
-
-    @staticmethod
-    def generate_uarff(X, y, class_names, X_importances=None, categorical=None):
-        """ Generates uncertain ARFF file
-
-            :param X:
-                DataFrame containing dataset for training
-            :param y:
-                target values returned by predict_proba function
-            :param class_names:
-                names for the classes to be used in uID3
-            :param X_importances:
-                confidence for each reading obtained. This matrix should be normalized to the range [0;1].
-            :param categorical:
-                array indicating which parameters should be treated as categorical
-            :return:
-                String representing the ARFF file
-
-        """
-        if X_importances is not None:
-            if not isinstance(X_importances, pd.DataFrame):
-                raise ValueError('Reading confidence matrix has to be DataFrame.')
-            if X.shape != X_importances.shape:
-                raise ValueError("Confidence for readings have to be exaclty the size of X.")
-        if categorical is None:
-            categorical = [False] * X.shape[1]
-
-        uarff = "@relation lux\n\n"
-        for i, (f, t) in enumerate(zip(X.columns, X.dtypes)):
-            if ptypes.is_integer_dtype(t) or ptypes.is_float_dtype(t) and not categorical[i]:
-                uarff += f'@attribute {f} @REAL\n'
-            elif categorical[i]:
-                domain = ','.join(map(str, list(X[f].unique())))
-                uarff += '@attribute ' + f + ' {' + domain + '}\n'
-
-        domain = ','.join([str(cn) for cn in class_names])
-        uarff += '@attribute class {' + domain + '}\n'
-
-        uarff += '@data\n'
-        for i in range(0, X.shape[0]):
-            for j in range(0, X.shape[1]):
-                if X_importances is not None:
-                    uarff += f'{X.iloc[i, j]}[{X_importances.iloc[i, j]}],'
-                else:
-                    uarff += f'{X.iloc[i, j]}[1],'
-            uarff += ';'.join([f'{c}[{p}]' for c, p in zip(class_names, y[i, :])]) + '\n'
-        return uarff

@@ -6,6 +6,7 @@ __all__ = ['UId3']
 from sklearn.base import BaseEstimator
 import numpy as np
 import pandas as pd
+import shap
 from sklearn.tree import DecisionTreeClassifier
 
 from .attribute import Attribute
@@ -15,10 +16,8 @@ from .tree import Tree
 from .tree_node import TreeNode
 from .tree_edge import TreeEdge
 from .tree_evaluator import TreeEvaluator
-from .value import Value
 from .utils import StandardRescaler
 from multiprocessing import cpu_count,Pool
-import shap
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import StandardScaler
 
@@ -152,8 +151,8 @@ class UId3(BaseEstimator):
         if entropy == 0 or len(data.get_attributes()) == 1:
             # create the only node and summary for it
             class_att = data.get_class_attribute()
-            root = TreeNode(class_att.get_name(), data.calculate_statistics(class_att))
-            root.set_type(class_att.get_type())
+            root = TreeNode(class_att['name'], data.calculate_statistics(class_att))
+            root.set_type(class_att['type'])
             tree = Tree(root)
             if depth == 0:
                 self.tree = tree
@@ -164,7 +163,7 @@ class UId3(BaseEstimator):
         
         cl=[]
         for i in data.get_instances():
-            cl.append(i.get_reading_for_attribute(data.get_class_attribute()).get_most_probable().get_name())
+            cl.append(i['readings'][data.get_class_attribute()['name']]['most_probable']['name'])
 
         n_jobs_inner = 1
         if n_jobs is not None:
@@ -211,21 +210,21 @@ class UId3(BaseEstimator):
                 #select two most important features according to SHAP
                 ivmean = data.to_dataframe_importances(average_absolute=True)
                 idd = np.flip(np.argsort(ivmean)[-2:])
-                features = [f for f in data.get_attributes() if f not in [data.get_class_attribute().get_name()]]
+                features = [f for f in data.get_attributes() if f not in [data.get_class_attribute()['name']]]
                 svc_features = [features[i] for i in idd]
                 svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att,svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=True)
    
             elif len(gains) > 1:
                 #take two most importnat selected by Dtree
                 gains = sorted(gains,key=lambda x: x[0],reverse=True)
-                svc_features = [gains[0][2].get_name(),gains[1][2].get_name()]
+                svc_features = [gains[0][2]['name'],gains[1][2]['name']]
                 svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att, svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=False)
         
             if svm_temp_gain > info_gain and (pure_svm_temp_gain/entropy)>=self.min_impurity_decrease:
                 info_gain = svm_temp_gain
                 pure_info_gain=pure_svm_temp_gain
                 best_split = svm_best_splitting_att
-                best_split.set_value_to_split_on(boundary_expression)
+                best_split['value_to_split_on'] = boundary_expression
 
         ###########################################
         
@@ -233,8 +232,8 @@ class UId3(BaseEstimator):
         if best_split == None:
             # create the only node and summary for it
             class_att = data.get_class_attribute()
-            root = TreeNode(class_att.get_name(), data.calculate_statistics(class_att))
-            root.set_type(class_att.get_type())
+            root = TreeNode(class_att['name'], data.calculate_statistics(class_att))
+            root.set_type(class_att['type'])
             tree = Tree(root)
             if depth == 0:
                 self.tree = tree
@@ -243,33 +242,39 @@ class UId3(BaseEstimator):
         # Create root node, and recursively go deeper into the tree.
         class_att = data.get_class_attribute()
         class_stats = data.calculate_statistics(class_att)
-        root = TreeNode(best_split.get_name(), class_stats)
-        root.set_type(class_att.get_type())
+        root = TreeNode(best_split['name'], class_stats)
+        root.set_type(class_att['type'])
         
         classes = []
         # attach newly created trees
-        for val in best_split.get_splittable_domain():
-            if best_split.get_type() == Attribute.TYPE_NOMINAL:
+        splittable_domain = set()
+        if best_split['type'] == Attribute.TYPE_NOMINAL:
+            splittable_domain = best_split['domain']
+        elif best_split['type'] == Attribute.TYPE_NUMERICAL:
+            splittable_domain.add(best_split['value_to_split_on'])
+
+        for val in splittable_domain:
+            if best_split['type'] == Attribute.TYPE_NOMINAL:
                 best_split_stats = data.calculate_statistics(best_split)
                 new_data = data.filter_nominal_attribute_value(best_split, val)
                 if not discount_importance:
                     subtree = self.fit(new_data, classifier=classifier, entropyEvaluator=entropyEvaluator, depth=depth + 1, beta=beta, prune=prune, oblique=oblique,n_jobs=n_jobs)
                 else:
                     if oblique and svm_temp_gain > 0:
-                        new_data = new_data.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy/2.0)
-                        new_data = new_data.reduce_importance_for_attribute(svm_best_linear_att, best_split.get_importance_gain()/entropy/2.0)
+                        new_data = new_data.reduce_importance_for_attribute(best_split, best_split['info_gain']/entropy/2.0)
+                        new_data = new_data.reduce_importance_for_attribute(svm_best_linear_att, best_split['info_gain']/entropy/2.0)
                     else:
-                        new_data = new_data.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy)
+                        new_data = new_data.reduce_importance_for_attribute(best_split, best_split['info_gain']/entropy)
                     
                     subtree = self.fit(new_data, discount_importance=True, classifier=None, entropyEvaluator=entropyEvaluator, depth=depth + 1,beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs)
                 
-                if subtree and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
+                if subtree and best_split_stats['most_probable']['confidence'] > self.GROW_CONFIDENCE_THRESHOLD:
                     if subtree.get_root().is_leaf():
-                        classes.append(subtree.get_root().get_stats().get_most_probable().get_name())
-                    root.add_edge(TreeEdge(Value(val, best_split_stats.get_avg_confidence()), subtree.get_root()))
-                    root.set_infogain(best_split.get_importance_gain())
+                        classes.append(subtree.get_root().get_stats()['most_probable']['confidence'])
+                    root.add_edge(TreeEdge({'name': val, 'confidence': best_split_stats.get_avg_confidence(), 'importances': {'Value':1.0}}, subtree.get_root()))
+                    root.set_infogain(best_split['info_gain'])
 
-            elif best_split.get_type() == Attribute.TYPE_NUMERICAL:
+            elif best_split['type'] == Attribute.TYPE_NUMERICAL:
                 best_split_stats = data.calculate_statistics(best_split)
                 new_data_less_then,new_data_greater_equal = data.filter_numeric_attribute_value_expr(best_split, val)
                 
@@ -280,37 +285,37 @@ class UId3(BaseEstimator):
                         subtree_greater_equal = self.fit(new_data_greater_equal, classifier=classifier, entropyEvaluator=entropyEvaluator, depth=depth + 1, beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs)
                     else:
                         if oblique and svm_temp_gain > 0:
-                            new_data_less_then = new_data_less_then.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy/2.0)
-                            new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy/2.0)
+                            new_data_less_then = new_data_less_then.reduce_importance_for_attribute(best_split, best_split['info_gain']/entropy/2.0)
+                            new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(best_split, best_split['info_gain']/entropy/2.0)
                             
-                            new_data_less_then = new_data_less_then.reduce_importance_for_attribute(svm_best_linear_att, best_split.get_importance_gain()/entropy/2.0)
-                            new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(svm_best_linear_att, best_split.get_importance_gain()/entropy/2.0)
+                            new_data_less_then = new_data_less_then.reduce_importance_for_attribute(svm_best_linear_att, best_split['info_gain']/entropy/2.0)
+                            new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(svm_best_linear_att, best_split['info_gain']/entropy/2.0)
                         else:
-                            new_data_less_then = new_data_less_then.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy)
-                            new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy)
+                            new_data_less_then = new_data_less_then.reduce_importance_for_attribute(best_split, best_split['info_gain']/entropy)
+                            new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(best_split, best_split['info_gain']/entropy)
                         
                         
                         subtree_less_than = self.fit(new_data_less_then, classifier=None,  entropyEvaluator=entropyEvaluator, depth=depth + 1, discount_importance=True,beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs)
                         subtree_greater_equal = self.fit(new_data_greater_equal, classifier=None, entropyEvaluator=entropyEvaluator, depth=depth + 1, discount_importance=True,beta=beta, prune=prune, oblique=oblique,n_jobs=n_jobs)
                         
-                    if subtree_less_than and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
-                        root.add_edge(TreeEdge(Value("<" + val, best_split_stats.get_avg_confidence()), subtree_less_than.get_root()))
+                    if subtree_less_than and best_split_stats.get_most_probable()['confidence'] > self.GROW_CONFIDENCE_THRESHOLD:
+                        root.add_edge(TreeEdge({'name': "<" + val, 'confidence': best_split_stats.get_avg_confidence(), 'importances': {'Value':1.0}}, subtree_less_than.get_root()))
                         if subtree_less_than.get_root().is_leaf():
-                            classes.append(subtree_less_than.get_root().get_stats().get_most_probable().get_name())
-                    if subtree_greater_equal and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
-                        root.add_edge(TreeEdge(Value(">=" + val, best_split_stats.get_avg_confidence()), subtree_greater_equal.get_root()))
+                            classes.append(subtree_less_than.get_root().get_stats().get_most_probable()['name'])
+                    if subtree_greater_equal and best_split_stats.get_most_probable()['confidence'] > self.GROW_CONFIDENCE_THRESHOLD:
+                        root.add_edge(TreeEdge({'name': ">=" + val, 'confidence': best_split_stats.get_avg_confidence(), 'importances': {'Value':1.0}}, subtree_greater_equal.get_root()))
                         if subtree_greater_equal.get_root().is_leaf():
-                            classes.append(subtree_greater_equal.get_root().get_stats().get_most_probable().get_name())
+                            classes.append(subtree_greater_equal.get_root().get_stats().get_most_probable()['name'])
                     root.set_type(Attribute.TYPE_NUMERICAL)
-                    root.set_infogain(best_split.get_importance_gain())
+                    root.set_infogain(best_split['info_gain'])
 
         #If all of the leaves predict same class, simply remove them, when prune is True
         if prune and len(classes) == len(root.get_edges()) and len(set(classes)) < 2:
             root.set_edges([])
         
         if len(root.get_edges()) == 0:
-            root.set_att(data.get_class_attribute().get_name())
-            root.set_type(data.get_class_attribute().get_type())
+            root.set_att(data.get_class_attribute()['name'])
+            root.set_type(data.get_class_attribute()['type'])
 
         self.tree = Tree(root)
         return self.tree
@@ -319,13 +324,13 @@ class UId3(BaseEstimator):
     def get_oblique_gains(data, svc_features,entropyEvaluator, globalEntropy, beta, shap):
         svc = LinearSVC()
         datadf = data.to_dataframe()
-        if datadf[data.get_class_attribute().get_name()].nunique() < 2:
+        if datadf[data.get_class_attribute()['name']].nunique() < 2:
             return 0, 0, None, None, None
         
         sc = StandardScaler()
         sc.fit(datadf[svc_features])
         datadf.loc[:,svc_features] = sc.transform(datadf.loc[:,svc_features])
-        svc.fit(datadf[svc_features], datadf[data.get_class_attribute().get_name()])     
+        svc.fit(datadf[svc_features], datadf[data.get_class_attribute()['name']])     
 
     
         sr = StandardRescaler(sc.mean_, sc.scale_) 
@@ -387,7 +392,7 @@ class UId3(BaseEstimator):
     
     @staticmethod
     def try_attribute_for_split(data, attribute, cl, globalEntropy, entropyEvaluator,min_impurity_decrease, beta=1, n_jobs=None, shap=False):
-        values = attribute.get_domain()
+        values = attribute['domain']
         pure_info_gain = 0
         info_gain=0
         best_split=None
@@ -395,16 +400,16 @@ class UId3(BaseEstimator):
         stats = data.calculate_statistics(attribute)
         
         ## start searching for best border values  -- such that class value remains the same for the ranges between them
-        if attribute.get_type() == Attribute.TYPE_NUMERICAL:
+        if attribute['type'] == Attribute.TYPE_NUMERICAL:
             if isinstance(entropyEvaluator,UncertainEntropyEvaluator):
                 clf_h = DecisionTreeClassifier()
                 tmp_df = data.to_dataframe()
-                clf_h.fit(tmp_df[attribute.get_name()].values.reshape(-1, 1), tmp_df[data.get_class_attribute().get_name()])
+                clf_h.fit(tmp_df[attribute['name']].values.reshape(-1, 1), tmp_df[data.get_class_attribute()['name']])
                 values = np.array([clf_h.tree_.threshold[0].astype(str)])
             else:
                 border_search_list = []
                 for i in data.get_instances():
-                    v=i.get_reading_for_attribute(attribute).get_most_probable().get_name()
+                    v=i['readings'][attribute]['most_probable']['name']
                     border_search_list.append([v])
                 border_search_df = pd.DataFrame(border_search_list,columns=['values'])
                 border_search_df['values']=border_search_df['values'].astype('f8')
@@ -417,7 +422,7 @@ class UId3(BaseEstimator):
         else:
             values=list(values)
 
-        if n_jobs is not None and attribute.get_type()==Attribute.TYPE_NUMERICAL: 
+        if n_jobs is not None and attribute['type'] == Attribute.TYPE_NUMERICAL: 
             if n_jobs == -1:
                 n_jobs = cpu_count()
             if len(values)/n_jobs < UId3.PARALLEL_ENTRY_FACTOR:
@@ -452,8 +457,8 @@ class UId3(BaseEstimator):
             info_gain = temp_gain
             pure_info_gain=pure_temp_gain
             best_split = best_split_candidate
-            best_split_candidate.set_importance_gain(pure_info_gain)
-            best_split_candidate.set_value_to_split_on(value_to_split_on)
+            best_split_candidate['info_gain'] = pure_info_gain
+            best_split_candidate['value_to_split_on'] = value_to_split_on
             
         return info_gain, pure_info_gain, best_split
     
@@ -496,11 +501,11 @@ class UId3(BaseEstimator):
             subdataLessThan = None
             subdataGreaterEqual = None
                 
-            if attribute.get_type() == Attribute.TYPE_NOMINAL:
+            if attribute['type'] == Attribute.TYPE_NOMINAL:
                 subdata = data.filter_nominal_attribute_value(attribute, v)
                 stat_for_value = len(subdata)/len(data)
                 temp_gain += (stat_for_value) * entropyEvaluator.calculate_entropy(subdata)
-            elif attribute.get_type() == Attribute.TYPE_NUMERICAL:
+            elif attribute['type'] == Attribute.TYPE_NUMERICAL:
                 subdata_less_than,subdata_greater_equal = data.filter_numeric_attribute_value(attribute, v)
                 stat_for_lt_value = len(subdata_less_than)/len(data)
                 stat_for_gte_value = len(subdata_greater_equal)/len(data)
@@ -517,7 +522,7 @@ class UId3(BaseEstimator):
                     pure_temp_gain= pure_single_temp_gain
                     value_to_split_on = v
                     
-        if attribute.get_type() == Attribute.TYPE_NOMINAL:
+        if attribute['type'] == Attribute.TYPE_NOMINAL:
             conf_for_value = stats.get_avg_confidence()
             pure_temp_gain=globalEntropy-temp_gain
             if shap:
@@ -532,24 +537,6 @@ class UId3(BaseEstimator):
             local_info_gain=temp_gain
  
         return best_split, value_to_split_on, temp_gain, pure_temp_gain
-
-    @staticmethod
-    def fit_uncertain_nominal() -> None:
-        data = Data.parse_uarff("../resources/machine.nominal.uncertain.arff")
-        test = Data.parse_uarff("../resources/machine.nominal.uncertain.arff")
-
-        t = UId3.fit(data, UncertainEntropyEvaluator(), 0)
-        br = TreeEvaluator.train_and_test(t, test)
-
-        print("###############################################################")
-        print(f"Correctly classified instances: {br.get_accuracy() * 100}%")
-        print(f"Incorrectly classified instances: {(1-br.get_accuracy()) * 100}%")
-        print("TP Rate", "FP Rate", "Precision", "Recall", "F-Measure", "ROC Area", "Class")
-
-        for class_label in data.get_class_attribute().get_domain():
-            cs = br.get_stats_for_label(class_label)
-            print(cs.get_TP_rate(), cs.get_FP_rate(), cs.get_precision(), cs.get_recall(), cs.get_F_measure(),
-                                cs.get_ROC_area(br), cs.get_class_label())
 
     def predict(self, X):   # should take array-like X -> predict(X)
         if not isinstance(X, (list, np.ndarray)):
