@@ -155,35 +155,35 @@ class TreeEvaluator:
             self.prediction = prediction
             self.correct_label = correct_label
 
-        def __lt__(self, p1):
-            prob1 = self.prediction.get_stat_for_value(class_label)
-            prob2 = p1.prediction.get_stat_for_value(class_label)
-            return prob1 < prob2
+        # def __lt__(self, p1):
+        #     prob1 = self.prediction.get_stat_for_value(class_label)
+        #     prob2 = p1.prediction.get_stat_for_value(class_label)
+        #     return prob1 < prob2
 
-        def __le__(self, p1):
-            prob1 = self.prediction.get_stat_for_value(class_label)
-            prob2 = p1.prediction.get_stat_for_value(class_label)
-            return prob1 <= prob2
+        # def __le__(self, p1):
+        #     prob1 = self.prediction.get_stat_for_value(class_label)
+        #     prob2 = p1.prediction.get_stat_for_value(class_label)
+        #     return prob1 <= prob2
 
-        def __eq__(self, p1):
-            prob1 = self.prediction.get_stat_for_value(class_label)
-            prob2 = p1.prediction.get_stat_for_value(class_label)
-            return prob1 == prob2
+        # def __eq__(self, p1):
+        #     prob1 = self.prediction.get_stat_for_value(class_label)
+        #     prob2 = p1.prediction.get_stat_for_value(class_label)
+        #     return prob1 == prob2
 
-        def __ne__(self, p1):
-            prob1 = self.prediction.get_stat_for_value(class_label)
-            prob2 = p1.prediction.get_stat_for_value(class_label)
-            return prob1 != prob2
+        # def __ne__(self, p1):
+        #     prob1 = self.prediction.get_stat_for_value(class_label)
+        #     prob2 = p1.prediction.get_stat_for_value(class_label)
+        #     return prob1 != prob2
 
-        def __gt__(self, p1):
-            prob1 = self.prediction.get_stat_for_value(class_label)
-            prob2 = p1.prediction.get_stat_for_value(class_label)
-            return prob1 > prob2
+        # def __gt__(self, p1):
+        #     prob1 = self.prediction.get_stat_for_value(class_label)
+        #     prob2 = p1.prediction.get_stat_for_value(class_label)
+        #     return prob1 > prob2
 
-        def __ge__(self, p1):
-            prob1 = self.prediction.get_stat_for_value(class_label)
-            prob2 = p1.prediction.get_stat_for_value(class_label)
-            return prob1 >= prob2
+        # def __ge__(self, p1):
+        #     prob1 = self.prediction.get_stat_for_value(class_label)
+        #     prob2 = p1.prediction.get_stat_for_value(class_label)
+        #     return prob1 >= prob2
 
 
     @staticmethod

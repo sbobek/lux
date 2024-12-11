@@ -197,7 +197,7 @@ class LUX(BaseEstimator):
             if isinstance(instance_to_explain, (list)):
                 instance_to_explain = np.array([instance_to_explain])
             if len(instance_to_explain.shape) == 2:
-                return self.fit_bounding_boxes(X=X, y=y, boundiong_box_points=instance_to_explain,
+                return self.fit_bounding_boxes(X=X, y=y, bounding_box_points=instance_to_explain,
                                                X_importances=X_importances, exclude_neighbourhood=exclude_neighbourhood,
                                                use_parity=use_parity, inverse_sampling=inverse_sampling,
                                                class_names=class_names, parity_strategy=parity_strategy,
@@ -209,7 +209,7 @@ class LUX(BaseEstimator):
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
 
-    def fit_bounding_boxes(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
+    def fit_bounding_boxes(self, X, y, bounding_box_points, X_importances=None, exclude_neighbourhood=False,
                            use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                            discount_importance=False, uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1,
                            representative='centroid', density_sampling=False, radius_sampling=False, oversampling=False,
@@ -270,9 +270,9 @@ class LUX(BaseEstimator):
         if class_names is not None and len(class_names) != len(np.unique(y)):
             raise ValueError('Length of class_names not aligned with number of classes in y')
 
-        if isinstance(boundiong_box_points, (list)):
-            boundiong_box_points = np.array(boundiong_box_points)
-        if len(boundiong_box_points.shape) != 2:
+        if isinstance(bounding_box_points, (list)):
+            bounding_box_points = np.array(bounding_box_points)
+        if len(bounding_box_points.shape) != 2:
             raise ValueError('Bounding box should be 2D.')
 
         if X_importances is not None:
@@ -284,7 +284,7 @@ class LUX(BaseEstimator):
 
         X_train_sample, X_train_sample_importances = self.create_sample_bb(X, np.argmax(
             self.predict_proba(self.process_input(X)), axis=1),
-                                                                           boundiong_box_points,
+                                                                           bounding_box_points,
                                                                            X_importances=X_importances,
                                                                            exclude_neighbourhood=exclude_neighbourhood,
                                                                            use_parity=use_parity,

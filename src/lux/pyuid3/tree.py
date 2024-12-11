@@ -115,7 +115,6 @@ class Tree:
 
         #types are defined by atts domains
         atts = self.get_attributes()
-        print(atts)
         for att in atts:
             result += f"xtype [\n name: {att['name']}, \n"
             if att['type'] == Attribute.TYPE_NOMINAL:
