@@ -11,6 +11,7 @@ from collections import defaultdict
 import re
 import pandas as pd
 import os
+import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -22,22 +23,24 @@ class Tree:
     def get_root(self) -> TreeNode:
         return self.root
 
-    def predict(self, i: Dict) -> AttStats:
+    def predict(self, i: np.array, i_labels: list) -> AttStats:
         test_node = self.get_root()
+        name_val_dict = {}
+        for key, val in zip(i_labels, i):
+            name_val_dict[key] = str(val)
         while not test_node.is_leaf():
             att_to_test = test_node.get_att()
-            r = i['readings'][att_to_test]
-            most_probable = r['most_probable']
+            most_probable_name = name_val_dict[att_to_test]
 
             new_node = None
             for te in test_node.get_edges():
                 if test_node.get_type() == Attribute.TYPE_NOMINAL:
-                    if te.get_value()['name'] == most_probable['name']:
+                    if te.get_value()['name'] == most_probable_name:
                         new_node = te.get_child()
                         break
                 elif test_node.get_type() == Attribute.TYPE_NUMERICAL:
-                    tev = self.compile_expr(i, te.get_value())                   
-                    if eval(f"{most_probable['name']}{tev}"):
+                    tev = self.compile_expr(name_val_dict, te.get_value())                   
+                    if eval(f"{most_probable_name}{tev}"):
                         new_node = te.get_child()
                         break
 
@@ -48,35 +51,33 @@ class Tree:
 
         return test_node.get_stats()
     
-    def compile_expr(self, i, v):
-        readings = i['readings']
+    def compile_expr(self, name_val_dict, v):
         expr = v['name']
-        for key in sorted(readings.keys(),key=len,reverse=True):
-            expr = expr.replace(key, readings[key]['most_probable']['name'])
+        for key in sorted(name_val_dict.keys(),key=len,reverse=True):
+            expr = expr.replace(key, name_val_dict[key])
         return expr
     
-    def justification_tree(self, i: Dict) -> str:
+    def justification_tree(self, i, i_labels) -> str:
         test_node = self.get_root()
         root_handle=test_node.copy()
         root_handle.set_edges([])
         temp_root = root_handle
         while not test_node.is_leaf():
             att_to_test = test_node.get_att()
-            r = i['readings'][att_to_test]
-            most_probable = r['most_probable']
+            most_probable_name = str(i[i_labels.index(att_to_test)])
 
             new_node = None
             for te in test_node.get_edges():
                 if test_node.get_type() == Attribute.TYPE_NOMINAL:
-                    if eval(f"{te.get_value()['name']} == {most_probable['name']}"):
+                    if te.get_value()['name'] == {most_probable_name}:
                         new_node = te.get_child()
                         te_copy = te.copy()
                         temp_root.set_edges([te_copy])
                         temp_root = te_copy.get_child()
                         break
                 elif test_node.get_type() == Attribute.TYPE_NUMERICAL:
-                    tev = self.compile_expr(i, te.get_value())                 
-                    if eval(f"{most_probable['name']}{tev}"):
+                    tev = self.compile_expr(i, i_labels, te.get_value())              
+                    if eval(f"{most_probable_name}{tev}"):
                         new_node = te.get_child()
                         te_copy = te.copy()
                         temp_root.set_edges([te_copy])

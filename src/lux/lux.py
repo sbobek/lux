@@ -793,9 +793,7 @@ class LUX(BaseEstimator):
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
 
-        XData = Data.parse_dataframe(X, name='lux')
-
-        return [int(f['name']) for f in self.uid3.predict(XData.get_instances())]
+        return [int(f['name']) for f in self.uid3.predict(X)]
 
     def justify(self, X, to_dict=False, reduce=True):
         """Traverse down the path for given x.
@@ -811,12 +809,12 @@ class LUX(BaseEstimator):
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
 
-        XData = Data.parse_dataframe(X, name='lux')
+        labels = list(X.columns)
 
         if to_dict:
-            return [self.uid3.tree.justification_tree(i).to_dict(reduce=reduce) for i in XData.get_instances()]
+            return [self.uid3.tree.justification_tree(i, labels).to_dict(reduce=reduce) for i in X.to_numpy()]
         else:
-            return [self.uid3.tree.justification_tree(i).to_pseudocode(reduce=reduce) for i in XData.get_instances()]
+            return [self.uid3.tree.justification_tree(i, labels).to_pseudocode(reduce=reduce) for i in X.to_numpy()]
 
     def __get_covered(self, rule, dataset, features, categorical=None):
         """ Returns covered instances from a given dataset and a rule

@@ -538,11 +538,9 @@ class UId3(BaseEstimator):
  
         return best_split, value_to_split_on, temp_gain, pure_temp_gain
 
-    def predict(self, X):   # should take array-like X -> predict(X)
-        if not isinstance(X, (list, np.ndarray)):
-            X = [X]
+    def predict(self, X: pd.DataFrame):   # should take array-like X -> predict(X)
         predictions = []
-        for instance in X:
-            att_stats = self.tree.predict(instance)
+        for instance in X.to_numpy():
+            att_stats = self.tree.predict(instance, list(X.columns))
             predictions.append(att_stats.get_most_probable())
         return predictions
