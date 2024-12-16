@@ -62,9 +62,12 @@ class Tree:
         root_handle=test_node.copy()
         root_handle.set_edges([])
         temp_root = root_handle
+        name_val_dict = {}
+        for key, val in zip(i_labels, i):
+            name_val_dict[key] = str(val)
         while not test_node.is_leaf():
             att_to_test = test_node.get_att()
-            most_probable_name = str(i[i_labels.index(att_to_test)])
+            most_probable_name = name_val_dict[att_to_test]
 
             new_node = None
             for te in test_node.get_edges():
@@ -76,7 +79,7 @@ class Tree:
                         temp_root = te_copy.get_child()
                         break
                 elif test_node.get_type() == Attribute.TYPE_NUMERICAL:
-                    tev = self.compile_expr(i, i_labels, te.get_value())              
+                    tev = self.compile_expr(name_val_dict, te.get_value())              
                     if eval(f"{most_probable_name}{tev}"):
                         new_node = te.get_child()
                         te_copy = te.copy()
@@ -91,11 +94,6 @@ class Tree:
                 break
 
         return Tree(root=root_handle)
-
-    def error(self, i: Dict) -> bool:
-        result = self.predict(i)
-
-        return result['most_probable']['name'] == i['readings'][-1]['most_probable']['name']
 
     def get_attributes(self) -> list:
         return self.fill_attributes(list(), self.root)
