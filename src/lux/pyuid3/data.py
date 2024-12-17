@@ -288,15 +288,16 @@ class Data:
             importances=pd.DataFrame({'__all__':importances})
             warnings.warn("WARNING: SHAP values passed for one class only. This may lead to unexpected behaviour.")
 
+        names = list(importances.columns.get_level_values(1).unique())
         self.expected_values = expected_values
-        for (_,r),instance in zip(importances.iterrows(), self.instances):
+        for row, instance in zip(importances.to_numpy(), self.instances):
             new_instance = instance.copy()
             new_readings = instance['readings']
-            for att in r.index.get_level_values(1).unique():
+            for i, att in enumerate(names):
                 reading = new_readings[att]
                 importance_dict = {}
-                for cl in classes:
-                    importance_dict[cl] = r[cl][att]
+                for j, cl in enumerate(classes):
+                    importance_dict[cl] = row[j * len(names) + i]
                 new_values = reading['values']
                 for v in new_values:
                     v['importances'] = importance_dict

@@ -330,7 +330,7 @@ class LUX(BaseEstimator):
                                       n_jobs=n_jobs)
         return self
 
-    def create_sample_bb(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
+    def create_sample_bb(self, X, y, bounding_box_points, X_importances=None, exclude_neighbourhood=False,
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                          representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
                          oversampling=False, categorical=None, n_jobs=None):
@@ -395,7 +395,7 @@ class LUX(BaseEstimator):
         # TODO: if classifier is present, then use it to obtain SHAP, thenm
 
         if use_parity:
-            for instance_to_explain in boundiong_box_points:
+            for instance_to_explain in bounding_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 instance_class = np.argmax(
                     self.predict_proba(self.process_input(np.array(instance_to_explain).reshape(1, -1))))
@@ -406,7 +406,7 @@ class LUX(BaseEstimator):
                     X_c_only = X[y == c]
                     if self.neighborhood_size <= 1.0:
                         n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                        nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))),
+                        nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(bounding_box_points))),
                                               n_jobs=n_jobs)
                     else:
                         min_occurances_lables = list(np.array(y)).count(c)
@@ -496,14 +496,14 @@ class LUX(BaseEstimator):
             X_c_only = X
             if self.neighborhood_size <= 1.0:
                 n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))), n_jobs=n_jobs,
+                nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(bounding_box_points))), n_jobs=n_jobs,
                                       metric=metric)
             else:
                 nn = NearestNeighbors(n_neighbors=self.neighborhood_size, n_jobs=n_jobs, metric=metric)
 
             if metric != 'precomputed':
                 nn.fit(X_c_only.values)
-            for instance_to_explain in boundiong_box_points:
+            for instance_to_explain in bounding_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 if metric == 'precomputed':
                     signature = inspect.signature(gower.gower_topn)
@@ -561,7 +561,7 @@ class LUX(BaseEstimator):
                 X_train_sample_importances = total[~total.index.duplicated(keep='first')].drop(columns=['label'])
 
         if radius_sampling:
-            instance_to_explain = boundiong_box_points[
+            instance_to_explain = bounding_box_points[
                 0]  # Todo in case of BBozes, rasius should be calculated for all of them
             X_train_sample = X.loc[X_train_sample.index]
             if radius is None:
@@ -609,19 +609,19 @@ class LUX(BaseEstimator):
                 warnings.warn("WARNING: X_importances have no effect when oversampling is True.")
                 X_importances = None
             if self.oversampling_strategy == self.OS_STRATEGY_SMOTE:
-                instance_to_explain = boundiong_box_points[
+                instance_to_explain = bounding_box_points[
                     0]  # Todo in case of BBozes, rasius should be calculated for all of them
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
             elif self.oversampling_strategy == self.OS_STRATEGY_IMPORTANCE:
-                instance_to_explain = boundiong_box_points[0]
+                instance_to_explain = bounding_box_points[0]
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
                                          indstance_to_explain=instance_to_explain,
                                          min_generate_samples=self.min_generate_samples,process_input=self.process_input,
                                          categorical=self.categorical)
                 X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
-                instance_to_explain = boundiong_box_points[0]
+                instance_to_explain = bounding_box_points[0]
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
@@ -809,12 +809,10 @@ class LUX(BaseEstimator):
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
 
-        labels = list(X.columns)
-
         if to_dict:
-            return [self.uid3.tree.justification_tree(i, labels).to_dict(reduce=reduce) for i in X.to_numpy()]
+            return [self.uid3.tree.justification_tree(i, self.attributes_names).to_dict(reduce=reduce) for i in X.to_numpy()]
         else:
-            return [self.uid3.tree.justification_tree(i, labels).to_pseudocode(reduce=reduce) for i in X.to_numpy()]
+            return [self.uid3.tree.justification_tree(i, self.attributes_names).to_pseudocode(reduce=reduce) for i in X.to_numpy()]
 
     def __get_covered(self, rule, dataset, features, categorical=None):
         """ Returns covered instances from a given dataset and a rule
@@ -922,7 +920,7 @@ class LUX(BaseEstimator):
         else:
             return counterfactual_rules[:topn]
 
-    def visualize(self, data, target_column_name='class', instance2explain=None, counterfactual=None,
+    def visualize(self, data, target_column_name='class', fmt='.2f', instance2explain=None, counterfactual=None,
                   filename='tree.dot'):
         if counterfactual is not None:
             cfdf = pd.DataFrame(counterfactual['counterfactual']).T
@@ -935,8 +933,11 @@ class LUX(BaseEstimator):
                 self.predict_proba(self.process_input(i2edf.values.reshape(1, -1)))[0])
         else:
             i2edf = None
-        self.uid3.tree.save_dot(filename, fmt='.2f', visual=True, background_data=data, instance2explain=i2edf,
+        self.tree.save_dot(filename, fmt=fmt, visual=True, background_data=data, instance2explain=i2edf,
                                 counterfactual=cfdf)
+    
+    def to_dot(self, filename='tree.dot', fmt='.2f'):
+        self.tree.save_dot(filename, fmt)
 
     def to_HMR(self):
         """ Exports to HMR format that can be executed by the HeaRTDroid rule-engine
