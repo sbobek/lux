@@ -49,7 +49,7 @@ class Tree:
 
         return test_node.get_stats()
     
-    def justification_tree(self, i: Instance) -> str:
+    def justification_tree(self, i: Instance):
         test_node = self.get_root()
         root_handle=test_node.copy()
         root_handle.set_edges([])
@@ -88,7 +88,7 @@ class Tree:
     def error(self, i: Instance) -> bool:
         result = self.predict(i)
 
-        return result.get_most_porbable().get_name() == i.get_readings().get_last().get_most_probable().get_name()
+        return result.get_most_probable().get_name() == i.get_readings().get_last().get_most_probable().get_name()
 
     def get_attributes(self) -> set:
         return self.fill_attributes(set(), self.root)
@@ -145,7 +145,6 @@ class Tree:
         rules = self.get_rules()
         decision_att = self.get_class_attribute().get_name()
         dec_att = self.get_class_attribute()
-        cond_atts = Attribute()
         cond_atts_list = list(atts)
         cond_atts_list.remove(dec_att)
 
@@ -156,8 +155,6 @@ class Tree:
             for att in atts:
                 if att.get_name() == self.get_class_attribute().get_name():
                     continue
-
-                value = Value("any", 1.0)
 
                 found = False
                 for c in rule:
@@ -185,12 +182,9 @@ class Tree:
             confidence = confidence * 10 / 10.0
             result += f"]. # {confidence}\n"
 
-
-        # result += "</table></xtt><callbacks/></hml>\n"
         return result
     
     def to_pseudocode(self, reduce=True, operators_mapping=None) -> str:
-        result = ""
         if operators_mapping is None:
             operators_mapping = {'if':'IF',
                                  'then':'THEN',
@@ -211,13 +205,12 @@ class Tree:
             for k,v in rule['rule'].items():
                 conditional_part.append(f'{k} '+f" {operators_mapping['and']} {k} ".join(v))
             result+=f" {operators_mapping['and']} ".join(conditional_part)
-            ex = '\\['
             result += f" {operators_mapping['then']} {decision_att} {operators_mapping['set']} {rule['prediction']}"
             result += f" # {rule['confidence']}\n"
 
         return result
 
-    def to_dict(self, reduce = True, operators_mapping=None) -> str:
+    def to_dict(self, reduce = True, operators_mapping=None) -> list:
         result = []
         if operators_mapping is None:
             operators_mapping = {'if':'IF',
@@ -403,7 +396,7 @@ class Tree:
                     value = te.get_value().get_name()
                     value=self.__format_expression(value,fmt)
                 else:
-                    value = value=te.get_value().get_name()
+                    value=te.get_value().get_name()
                 result += f"{hash(parent)}->{hash(te.get_child())}[label=\"{value}\n conf={round(te.get_value().get_confidence() * 100.0) / 100.0} \"]\n"
                 result += self.to_dot(te.get_child(),fmt=fmt)
 
@@ -426,18 +419,16 @@ class Tree:
         return columns
     
     def __format_expression(self,value,fmt):
-        value_tr = value
-        for f in [a.get_name() for a in self.get_attributes()]:
-            value_tr = re.sub(r'\b[a-zA-Z_]\w*\b','',value_tr)
-        numbers = re.findall("[-]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", value_tr)
-        formatted = [("{value:"+fmt+"}").format(value=float(v)) for v in numbers]
-        for k,v in zip(numbers, formatted):
-            value = value.replace(k,v)
+        value_tr = re.sub(r'\b[a-zA-Z_]\w*\b', '', value)
+        numbers = re.findall(r"[-]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", value_tr)
+        for k in numbers:
+            formatted = ("{value:" + fmt + "}").format(value=float(k))
+            value = value.replace(k, formatted)
+
         return value
 
     def to_dot_visual(self, parent=None, background_data: pd.DataFrame=None, instance2explain=None, counterfactual=None, file_format='png', palette='Set2', fmt=None) -> str:
         path = '.'
-        features=[]
         target_column = background_data.columns[-1]
         background_data[target_column] = background_data[target_column].astype(str)
         if not os.path.exists(path+'/imgs/'):
@@ -525,7 +516,7 @@ class Tree:
                     value = te.get_value().get_name()
                     value=self.__format_expression(value,fmt)
                 else:
-                    value = value=te.get_value().get_name()
+                    value=te.get_value().get_name()
                     
                 result += f"{hash(parent)}->{hash(te.get_child())}[label=\"{value}\n conf={round(te.get_value().get_confidence() * 100.0) / 100.0} \"]\n"
                 sibling_instance2explain=instance2explain

@@ -37,7 +37,6 @@ class TreeEvaluator:
 
 
         def get_ROC_area(self, bench) -> float:
-            result = 0
             preds = bench.get_predictions()
 
 
@@ -73,7 +72,7 @@ class TreeEvaluator:
         def get_class_label(self) -> str:
             return self.class_label
 
-        def set_class_label(class_label: str) -> None:
+        def set_class_label(self, class_label: str) -> None:
             self.class_label = class_label
 
         def get_TP(self) -> float:

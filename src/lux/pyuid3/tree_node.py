@@ -8,12 +8,12 @@ from .att_stats import AttStats
 
 # Cell
 class TreeNode:
-    def __init__(self, att_name: str, stats: str, edges=[], type=Attribute.TYPE_NOMINAL, infogain=0):
+    def __init__(self, att_name: str, stats: str, edges=[], type=Attribute.TYPE_NOMINAL, infogain = 0):
         self.att = att_name
         self.stats = stats
         self.edges = []
         self.type = type
-        self.infogain = 0 # default value of double is 0
+        self.infogain = infogain # default value of double is 0
 
     def get_type(self) -> int:
         return self.type
@@ -33,7 +33,7 @@ class TreeNode:
     def is_leaf(self) -> bool:
         return not self.edges
 
-    def get_stats(self) -> AttStats:
+    def get_stats(self) -> str:
         return self.stats
 
     def set_stats(self, stats: AttStats) -> None:

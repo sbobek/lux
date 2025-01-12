@@ -175,7 +175,7 @@ class Data:
             else:
                 new_instances_greater_equal.append(new_instance)
 
-        return (Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal))
+        return Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal)
     
 
     def get_attribute_of_name(self, att_name: str) -> Attribute:
@@ -193,28 +193,6 @@ class Data:
             Returns None if the attribute name is not found in the dataset.
         """
         return self.attributes.get(att_name, None)
-
-    def to_arff_most_probable(self) -> str:
-        """ Convert the dataset to ARFF format using the most probable values for each attribute.
-
-        Returns:
-        --------
-        :return: str
-            The dataset in ARFF format using the most probable values for each attribute.
-        """
-        result = '@relation ' + self.name + '\n'
-        for at in self.attributes:
-            result += at.to_arff() + '\n'
-
-        result += '@data\n'
-
-        for i in self.instances:
-            for r in i.get_readings():
-                result += r.get_most_probable().get_name()
-                result += ','
-            result = result[:-1]  # delete the last coma ','
-            result += '\n'
-        return result
 
     def to_arff_skip_instance(self, epsilon: float) -> str:
         """ Convert the dataset to ARFF format skipping instances where the confidence of the most probable value

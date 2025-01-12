@@ -17,7 +17,7 @@ import numdifftools as nd
 
 class ImportanceSampler(TransformerMixin, BaseEstimator):
 
-    def __init__(self, classifier, predict_proba, indstance_to_explain, min_generate_samples, process_input=None, categorical=None):
+    def __init__(self, classifier, predict_proba, instance_to_explain, min_generate_samples, process_input=None, categorical=None):
         """
         A transformer class for generating synthetic data using importance sampling based on SHAP values.
 
@@ -41,7 +41,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         """
         self.classifier = classifier
         self.predict_proba = predict_proba
-        self.instance_to_explain = indstance_to_explain
+        self.instance_to_explain = instance_to_explain
         self.min_generate_samples = min_generate_samples
         self.process_input = process_input if process_input is not None else lambda x: x
         self.categorical = categorical

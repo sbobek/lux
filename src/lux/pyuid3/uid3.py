@@ -330,9 +330,7 @@ class UId3(BaseEstimator):
     
         sr = StandardRescaler(sc.mean_, sc.scale_) 
         single_temp_gain_max = 0
-        pure_single_temp_gain_max = 0
         pure_single_temp_gain = 0
-        boundary_expression=None
         boundary_expression_max=None
         single_temp_gain=0
         splitting_att=None
@@ -377,7 +375,6 @@ class UId3(BaseEstimator):
                                                                                  subdata_less_than,subdata_greater_equal, splitting_att, entropyEvaluator, globalEntropy, beta, shap)
             if single_temp_gain > single_temp_gain_max:
                 single_temp_gain_max=single_temp_gain
-                pure_single_temp_gain_max=pure_single_temp_gain
                 boundary_expression_max = boundary_expression
         
         
@@ -484,22 +481,17 @@ class UId3(BaseEstimator):
     @staticmethod
     def calculate_split_criterion( values, data, attribute, stats, globalEntropy, entropyEvaluator,min_impurity_decrease, beta=1, shap=False):
         temp_gain = 0
-        temp_shapgain = 0
         temp_numeric_gain = 0
         pure_temp_gain=0
         local_info_gain = 0
         value_to_split_on = None
         best_split = None
         
-        for v in values:  
-            subdata = None
-            subdataLessThan = None
-            subdataGreaterEqual = None
-                
+        for v in values:
             if attribute.get_type() == Attribute.TYPE_NOMINAL:
                 subdata = data.filter_nominal_attribute_value(attribute, v)
                 stat_for_value = len(subdata)/len(data)
-                temp_gain += (stat_for_value) * entropyEvaluator.calculate_entropy(subdata)
+                temp_gain += stat_for_value * entropyEvaluator.calculate_entropy(subdata)
             elif attribute.get_type() == Attribute.TYPE_NUMERICAL:
                 subdata_less_than,subdata_greater_equal = data.filter_numeric_attribute_value(attribute, v)
                 stat_for_lt_value = len(subdata_less_than)/len(data)
@@ -523,13 +515,12 @@ class UId3(BaseEstimator):
             if shap:
                 avg_abs_importance = stats.get_avg_abs_importance()
                 pure_temp_gain_shap = avg_abs_importance * globalEntropy
-                temp_gain = (pure_temp_gain_shap + beta * pure_temp_gain) / (1 + beta)#((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
+                temp_gain = (pure_temp_gain_shap + beta * pure_temp_gain) / (1 + beta)
             else:
                 temp_gain = conf_for_value*pure_temp_gain
 
         if temp_gain > local_info_gain and (pure_temp_gain/globalEntropy)>=min_impurity_decrease:
             best_split = attribute
-            local_info_gain=temp_gain
  
         return best_split, value_to_split_on, temp_gain, pure_temp_gain
 

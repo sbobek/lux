@@ -62,7 +62,7 @@ def stability(rules_and_instances,dataset, features, categorical_indicator):
             else:
                 feature_jackart[i,ii] = len(set(rule_1.keys())&set(rule_2.keys()))/len(set(rule_1.keys())|set(rule_2.keys()))
 
-    return (np.mean(results_mean), np.mean(results_std),np.mean(feature_jackart),np.std(feature_jackart)) #large stability, low variance is desired
+    return np.mean(results_mean), np.mean(results_std),np.mean(feature_jackart),np.std(feature_jackart)
 
 
 def local_fidelity(rule, dataset, features, categorical_indicator, prediction,
