@@ -447,9 +447,13 @@ class Tree:
                     background_data = pd.concat((counterfactual,background_data))
                 stats = background_data[[target_column]].value_counts().to_frame('samples').sort_index().reset_index()
      
-                
-                sns.barplot(data = stats,
+                if len(stats) > 0:
+                    sns.barplot(data = stats,
                             x=target_column,y='samples', alpha=0.7,palette=palette,ax=ax)
+                else:
+                    sns.heatmap(pd.DataFrame([0]),cbar=False,ax=ax)
+                    ax.set_facecolor('gray')
+                    plt.text(0.5, 0.5, 'Phantom', ha='center', va='center', fontsize=20, color='white', weight='bold')
 
                 if instance2explain is not None:
                     pos = stats[stats[target_column]==instance2explain[target_column].values[0]].index[0]
@@ -457,15 +461,26 @@ class Tree:
                 if counterfactual is not None:
                     pos = stats[stats[target_column]==counterfactual[target_column].values[0]].index[0]
                     ax.plot(pos,1, 'ob', markersize=8)
-                ax.bar_label(ax.containers[-1], labels=[f'{l:.2f}%' for l in list(background_data[[target_column]].value_counts(normalize=True).sort_index()*100)], label_type='center')
+
+                if len(stats) > 0:    
+                    for patch, label in zip(ax.patches, [f'{l:.2f}%' for l in list(
+                        background_data[[target_column]].value_counts(normalize=True).sort_index() * 100)]):
+                        ax.annotate(label, 
+                                (patch.get_x() + patch.get_width() / 2., patch.get_height() / 2), 
+                            ha='center', va='center')
+                
+
                 plt.savefig(f'{path}/imgs/{hash(parent)}.{file_format}', format=file_format,bbox_inches='tight')
                 plt.close()
                 result += f"{hash(parent)}[label=\"\",shape=box, color={col},image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"
 
             has_plotted=False
             for te in parent.get_edges():
-
-                sibling_data = background_data.query(parent.get_att()+' '+te.get_value().get_name())
+                if parent.get_type() == Attribute.TYPE_NUMERICAL:
+                    op=''
+                else:
+                    op='=='
+                sibling_data = background_data.query(parent.get_att()+f'{op}'+te.get_value().get_name())
                                                      
                 if not has_plotted and not parent.is_leaf():
                     result += f"{hash(parent)}[label=\"\",shape=box, color={col}, image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"

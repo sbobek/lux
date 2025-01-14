@@ -27,7 +27,7 @@ class UncertainSMOTE(BaseSMOTE):
         n_jobs=None,
         sigma=1,
         m_neighbors=10,
-        min_samples=0.1,
+        min_samples=0.01,
         instance_to_explain=None, 
         kind="borderline-1",
     ):
@@ -192,7 +192,7 @@ class UncertainSMOTE(BaseSMOTE):
 #                 n_maj >= (nn_estimator.n_neighbors - 1) / 2,
 #                 n_maj < nn_estimator.n_neighbors - 1,
 #             )
-            return np.bitwise_or(prediction_certainty<confidence_threshold, #changed fom <
+            return np.bitwise_or(prediction_certainty<confidence_threshold, #change to > to sample confident areas
                                          distance_mask)
         else:  # kind == "noise":
 #             # Samples are noise for m = m'

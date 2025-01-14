@@ -229,8 +229,10 @@ class UId3(BaseEstimator):
 
     def __init__(self, max_depth=2, node_size_limit = 1, grow_confidence_threshold = 0, min_impurity_decrease=0):
         self.TREE_DEPTH_LIMIT= max_depth
+        self.max_depth = max_depth
+        self.node_size_limit=node_size_limit
         self.NODE_SIZE_LIMIT = node_size_limit
-        self.GROW_CONFIDENCE_THRESHOLD = grow_confidence_threshold
+        self.grow_confidence_threshold = grow_confidence_threshold
         self.tree = None
         self.node_size_limit = node_size_limit
         self.min_impurity_decrease=min_impurity_decrease
@@ -328,7 +330,9 @@ class UId3(BaseEstimator):
             #     pass
             
             try:
-                explainer = shap.Explainer(classifier,datadf.iloc[:,:-1])
+                bgmaxsize = datadf.shape[0]
+                bg = datadf.iloc[:,:-1].sample(min(bgmaxsize, 500))
+                explainer = shap.Explainer(classifier,bg)#datadf.iloc[:,:-1])
                 if hasattr(explainer, "shap_values"):
                     shap_values = explainer.shap_values(datadf.iloc[:,:-1],check_additivity=False)
                 else:
@@ -339,7 +343,7 @@ class UId3(BaseEstimator):
                 else:
                     expected_values=[np.mean(v) for v in shap_values]
             except TypeError:
-                explainer = shap.Explainer(classifier.predict_proba, datadf.iloc[:,:-1])
+                explainer = shap.Explainer(classifier.predict_proba, bg)#datadf.iloc[:,:-1])
                 shap_values = explainer(datadf.iloc[:,:-1]).values
                 shap_values=[sv for sv in np.moveaxis(shap_values, 2,0)]
                 expected_values=[np.mean(v) for v in shap_values]
@@ -406,6 +410,7 @@ class UId3(BaseEstimator):
         gains = []
         if n_jobs > 1 and n_jobs_inner < len(data.get_attributes()):
             with Pool(n_jobs) as pool:
+                print(entropy)
                 results = pool.starmap(UId3.try_attribute_for_split, [(data, a, cl, entropy, entropyEvaluator,self.min_impurity_decrease, beta, 1,classifier is not None) for a in data.get_attributes() if a != data.get_class_attribute()])
                 temp_gain = 0
                 for temp_gain, pure_temp_gain, best_split_candidate in results:
@@ -432,28 +437,31 @@ class UId3(BaseEstimator):
 
         ###########################################
         #if there is a shap
-        if oblique:
-            svm_temp_gain = pure_svm_temp_gain = 0
-            if classifier is not None:
-                #select two most important features according to SHAP
-                ivmean = data.to_dataframe_importances(average_absolute=True)
-                idd = np.flip(np.argsort(ivmean)[-2:])
-                features = [f for f in data.get_attributes() if f not in [data.get_class_attribute().get_name()]]
-                svc_features = [features[i] for i in idd]
-                svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att,svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=True)
-   
-            elif len(gains) > 1:
-                #take two most importnat selected by Dtree
-                gains = sorted(gains,key=lambda x: x[0],reverse=True)
-                svc_features = [gains[0][2].get_name(),gains[1][2].get_name()]
-                svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att, svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=False)
-
-        
-            if svm_temp_gain > info_gain and (pure_svm_temp_gain/entropy)>=self.min_impurity_decrease:
-                info_gain = svm_temp_gain
-                pure_info_gain=pure_svm_temp_gain
-                best_split = svm_best_splitting_att
-                best_split.set_value_to_split_on(boundary_expression)
+        try:
+            if oblique:
+                svm_temp_gain = pure_svm_temp_gain = 0
+                if classifier is not None:
+                    #select two most important features according to SHAP
+                    ivmean = data.to_dataframe_importances(average_absolute=True)
+                    idd = np.flip(np.argsort(ivmean)[-2:])
+                    features = [f for f in data.get_attributes() if f not in [data.get_class_attribute().get_name()]]
+                    svc_features = [features[i] for i in idd]
+                    svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att,svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=True)
+       
+                elif len(gains) > 1:
+                    #take two most importnat selected by Dtree
+                    gains = sorted(gains,key=lambda x: x[0],reverse=True)
+                    svc_features = [gains[0][2].get_name(),gains[1][2].get_name()]
+                    svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att, svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=False)
+    
+            
+                if svm_temp_gain > info_gain and (pure_svm_temp_gain/entropy)>=self.min_impurity_decrease:
+                    info_gain = svm_temp_gain
+                    pure_info_gain=pure_svm_temp_gain
+                    best_split = svm_best_splitting_att
+                    best_split.set_value_to_split_on(boundary_expression)
+        except:
+            pass
         
     
         ###########################################
@@ -493,7 +501,7 @@ class UId3(BaseEstimator):
                     
                     subtree,logs = self.fit(new_data, discount_importance=True, classifier=None, entropyEvaluator=entropyEvaluator, depth=depth + 1,beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs,logo=logo,bid=val)
                     log+=logs
-                if subtree and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
+                if subtree and best_split_stats.get_most_probable().get_confidence() > self.grow_confidence_threshold:
                     if subtree.get_root().is_leaf():
                         classes.append(subtree.get_root().get_stats().get_most_probable().get_name())
                     root.add_edge(TreeEdge(Value(val, best_split_stats.get_avg_confidence()), subtree.get_root()))
@@ -524,11 +532,11 @@ class UId3(BaseEstimator):
                         subtree_less_than,logs1 = self.fit(new_data_less_then, classifier=None,  entropyEvaluator=entropyEvaluator, depth=depth + 1, discount_importance=True,beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs,logo=logo,bid='lt')
                         subtree_greater_equal,logs2 = self.fit(new_data_greater_equal, classifier=None, entropyEvaluator=entropyEvaluator, depth=depth + 1, discount_importance=True,beta=beta, prune=prune, oblique=oblique,n_jobs=n_jobs,logo=logo,bid='gte')
                         log+=logs1+logs2
-                    if subtree_less_than and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
+                    if subtree_less_than and best_split_stats.get_most_probable().get_confidence() > self.grow_confidence_threshold:
                         root.add_edge(TreeEdge(Value("<" + val, best_split_stats.get_avg_confidence()), subtree_less_than.get_root()))
                         if subtree_less_than.get_root().is_leaf():
                             classes.append(subtree_less_than.get_root().get_stats().get_most_probable().get_name())
-                    if subtree_greater_equal and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
+                    if subtree_greater_equal and best_split_stats.get_most_probable().get_confidence() > self.grow_confidence_threshold:
                         root.add_edge(TreeEdge(Value(">=" + val, best_split_stats.get_avg_confidence()), subtree_greater_equal.get_root()))
                         if subtree_greater_equal.get_root().is_leaf():
                             classes.append(subtree_greater_equal.get_root().get_stats().get_most_probable().get_name())
@@ -783,8 +791,8 @@ class UId3(BaseEstimator):
             pure_temp_gain=globalEntropy-temp_gain
             if shap:
                 avg_abs_importance = stats.get_avg_abs_importance()
-                pure_temp_gain_shap = avg_abs_importance*entropy
-                temp_gain = ((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
+                pure_temp_gain_shap = avg_abs_importance*globalEntropy
+                temp_gain = (pure_temp_gain_shap+beta*pure_temp_gain)/(1+beta)##((1+beta**2)*pure_temp_gain_shap*pure_temp_gain)/((beta**2*pure_temp_gain_shap)+pure_temp_gain)*conf_for_value
             else:
                 temp_gain = conf_for_value*pure_temp_gain
 

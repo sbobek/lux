@@ -19,7 +19,7 @@ from sklearn.cluster import OPTICS
 import warnings
 import shap
 import sklearn
-import gower
+import gower_multiprocessing as gower
 import pickle
 from imblearn.over_sampling import SMOTE, SMOTENC
 from lux.UncertainSMOTE import *
@@ -28,6 +28,11 @@ from sklearn.svm import SVR
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
 import numdifftools as nd
+
+#changelog:
+# changed alpha in importance sampling
+# changed order of smote sampling
+# changed formula for calculation of LUX_Gain
 
 class LUX(BaseEstimator):
     
@@ -41,7 +46,7 @@ class LUX(BaseEstimator):
     OS_STRATEGY_IMPORTANCE='importance'
     OS_STRATEGY_BOTH='both'
     
-    def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, min_samples=5,min_generate_samples=0.02,oversampling_strategy='smote'):
+    def __init__(self,predict_proba, classifier=None, neighborhood_size=0.1,max_depth=2,  node_size_limit = 1, grow_confidence_threshold = 0,min_impurity_decrease=0, min_samples=5,min_generate_samples=0.02,oversampling_strategy='both'):
         self.neighborhood_size=neighborhood_size
         self.max_depth=max_depth
         self.node_size_limit=node_size_limit
@@ -96,27 +101,27 @@ class LUX(BaseEstimator):
             if not isinstance(X_importances, pd.DataFrame):
                 raise ValueError('Feature importance matrix has to be DataFrame.')
             
-        X_train_sample,X_train_sample_importances = self.create_sample_bb(X,np.argmax(self.predict_proba(X),axis=1),boundiong_box_points,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,representative=representative,density_sampling=density_sampling,radius_sampling=radius_sampling,n_jobs=n_jobs,parity_strategy=parity_strategy,
+        X_train_sample,X_train_sample_importances = self.create_sample_bb(X,np.argmax(self.predict_proba(self.__process_input(X)),axis=1),boundiong_box_points,X_importances = X_importances, exclude_neighbourhood=exclude_neighbourhood, use_parity=use_parity,inverse_sampling=inverse_sampling,class_names=class_names,representative=representative,density_sampling=density_sampling,radius_sampling=radius_sampling,n_jobs=n_jobs,parity_strategy=parity_strategy,
                                                                          oversampling=oversampling, categorical=categorical)
-        y_train_sample = self.predict_proba(X_train_sample)
+        y_train_sample = self.predict_proba(self.__process_input(X_train_sample))
         #limit features here
         
         ###################
-        threshold_proba = np.max(lux.predict_proba(i2e))
-        proball = np.max(lux.predict_proba(train[features]),axis=1)
-        threshold = np.max((np.mean(proball)-2*np.std(proball),threshold_proba))
-        X_train_sample = X_train_sample[proball>=threshold_proba]
+        # threshold_proba = np.max(self.predict_proba(boundiong_box_points))
+        # proball = np.max(self.predict_proba(X_train_sample), axis=1)
+        # threshold = np.min((np.mean(proball) - 2 * np.std(proball), threshold_proba))
+        # X_train_sample = X_train_sample[proball >= threshold]
         
         ###################
         
         #no proba predictor
-        y_train_sample_proba = self.predict_proba(X_train_sample)
+        y_train_sample_proba = self.predict_proba(self.__process_input(X_train_sample))
         hot = np.argmax(y_train_sample_proba,axis=1)
         y_train_sample = np.zeros(y_train_sample_proba.shape)
         for i in range(0,len(y_train_sample)):
             y_train_sample[i,hot[i]] = 1
         
-        uarff=LUX.generate_uarff(X_train_sample,y_train_sample, X_importances=X_train_sample_importances,categorical=categorical,class_names=class_names)
+        uarff=LUX.generate_uarff(self.__process_input(X_train_sample),y_train_sample, X_importances=X_train_sample_importances,categorical=categorical,class_names=class_names)
         self.data = Data.parse_uarff_from_string(uarff)
         
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit, grow_confidence_threshold=self.grow_confidence_threshold,min_impurity_decrease=self.min_impurity_decrease)
@@ -140,11 +145,11 @@ class LUX(BaseEstimator):
             metric = 'minkowski' 
         else:
             metric = 'precomputed'
-          
+        
         if use_parity:
             for instance_to_explain in boundiong_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1,-1)
-                instance_class = np.argmax(self.predict_proba(np.array(instance_to_explain).reshape(1,-1))) 
+                instance_class = np.argmax(self.predict_proba(self.__process_input(np.array(instance_to_explain).reshape(1,-1))))
                 class_names_instance_last = [c for c in class_names if c not in [instance_class]]+[instance_class]
                 neighbourhoods_bbox=[]
                 importances_bbox=[]
@@ -207,10 +212,10 @@ class LUX(BaseEstimator):
             if parity_strategy == 'local':
                 X_train_sample_c = X_train_sample.copy()
                 attributes = [a for a in X_train_sample]
-                X_train_sample_c['target']=np.argmax(self.predict_proba(X_train_sample_c),axis=1)
+                X_train_sample_c['target']=np.argmax(self.predict_proba(self.__process_input(X_train_sample_c)),axis=1)
                 representations = X_train_sample_c.groupby('target').agg(np.median)
-                representations['target'] = np.argmax(self.predict_proba(representations[attributes]))
-                prototypes = representations[representations['target'] != np.argmax(self.predict_proba(nn_instance_to_explain),axis=1)[0]][attributes]
+                representations['target'] = np.argmax(self.predict_proba(self.__process_input(representations[attributes])))
+                prototypes = representations[representations['target'] != np.argmax(self.predict_proba(self.__process_input(nn_instance_to_explain)),axis=1)[0]][attributes]
                 #find distances from instance to representatives
                 prototypes['distances'] = sklearn.metrics.pairwise_distances(prototypes[attributes], Y=nn_instance_to_explain)
                 target_radius = prototypes.reset_index().iloc[prototypes['distances'].argmin()]['target']
@@ -218,7 +223,7 @@ class LUX(BaseEstimator):
 
                 X_train_sample_c['distances'] = sklearn.metrics.pairwise_distances(X_train_sample_c[attributes], Y=nn_instance_to_explain)
                 t = X_train_sample_c[X_train_sample_c['target'] == target_radius].max()
-                X_train_sample = X_train_sample_c[X_train_sample_c['distances']<=t[0]]
+                X_train_sample = X_train_sample_c[X_train_sample_c['distances']<=t[0]][X_train_sample.columns] #FX20240724
                 if X_importances is not None:
                     X_train_sample_importances = X_train_sample_importances[(X_train_sample_c['distances']<=t[0]).values]                                                
             #########################################
@@ -251,7 +256,7 @@ class LUX(BaseEstimator):
                     
         if density_sampling:
             X_copy = X.copy()
-            #X_copy_full = X.copy()
+            X_copy_full = X.copy()
             #for class_in_consideration in np.unique(y):
             #    X_copy = X_copy_full[y==class_in_consideration]
 
@@ -314,30 +319,92 @@ class LUX(BaseEstimator):
                 X_train_sample = self.__importance_sampler(X_train_sample,instance_to_explain)
             elif self.oversampling_strategy==self.OS_STRATEGY_BOTH:
                 instance_to_explain =  boundiong_box_points[0]
-                X_train_sample = self.__importance_sampler(X_train_sample,instance_to_explain)
                 X_train_sample = self.__oversample_smote(X_train_sample,categorical=categorical,instance_to_explain=instance_to_explain)
-                print('OS Botj OK')
+                X_train_sample = self.__importance_sampler(X_train_sample,instance_to_explain)
+                
                 # if categorical is not None and sum(categorical) > 0:
                 #     sm = SMOTENC(categorical_features=categorical) 
                 # else:
                 #     sm = SMOTE();
                 
-                #X_train_sample_np,_ = sm.fit_resample(X_train_sample,self.classifier.predict(X_train_sample))
-               
-                #X_train_sample=pd.DataFrame(X_train_sample_np, columns=X_train_sample.columns)
+                # X_train_sample_np,_ = sm.fit_resample(X_train_sample,self.classifier.predict(X_train_sample))
+                # X_train_sample=pd.DataFrame(X_train_sample_np, columns=X_train_sample.columns)
                 
+            cols = X_train_sample.columns
+            print(X_train_sample.columns)
+            preds=np.argmax(self.predict_proba(self.__process_input(X_train_sample)),axis=1)
+            cl = np.argmax(self.predict_proba(self.__process_input(instance_to_explain.reshape(1,-1))))
+            mask = preds ==cl
+            #if class of interest is smaller than other classes
+            diff = len(preds)/len(np.unique(preds))-sum(mask)
+            #if dataset has more instances of opposite class, fill with instance2explain
+            if diff > 0:
+                X_train_sample_arr=np.concatenate((X_train_sample,np.ones((int(diff),X_train_sample.shape[1]))*instance_to_explain))
+                X_train_sample = pd.DataFrame(X_train_sample_arr,columns=cols)    
+
+        if len(X_train_sample) > self.neighborhood_size*len(X):
+            indices=None
+
+        else:
+            indices = None
         if X_importances is not None:
+            if indices is not None:
+                X_train_sample = X_train_sample.iloc[indices]
+                X_train_sample_importances = X_train_sample_importances.iloc[indices]
             return X_train_sample, X_train_sample_importances
         else:
+            if indices is not None:
+                X_train_sample = X_train_sample.iloc[indices]
             return X_train_sample,None
+
+    def __process_input(self,X):
+        # Convert X to a pandas DataFrame if it's a NumPy array
+        if self.categorical is None:
+            return X
+        if isinstance(X, np.ndarray):
+            X = pd.DataFrame(X)
         
+        elif not isinstance(X, pd.DataFrame):
+            raise TypeError("X should be either a numpy array or a pandas DataFrame")
+        
+        # Iterate over each column and corresponding indicator
+        for i, is_categorical in enumerate(self.categorical):
+            if is_categorical:
+                # Convert the column to int
+                X.iloc[:, i] = X.iloc[:, i].astype(int)
+
+        # Set the column names to self.attributes_names
+        X.columns = self.attributes_names
+        
+        return X
+
+    def pi(self,X):
+        # Convert X to a pandas DataFrame if it's a NumPy array
+        if self.categorical is None:
+            return X
+        if isinstance(X, np.ndarray):
+            X = pd.DataFrame(X)
+        
+        elif not isinstance(X, pd.DataFrame):
+            raise TypeError("X should be either a numpy array or a pandas DataFrame")
+        
+        # Iterate over each column and corresponding indicator
+        for i, is_categorical in enumerate(self.categorical):
+            if is_categorical:
+                # Convert the column to int
+                X.iloc[:, i] = X.iloc[:, i].astype(int)
+
+        # Set the column names to self.attributes_names
+        X.columns = self.attributes_names
+        
+        return X
     
     def __oversample_smote(self,X_train_sample,sigma=1,iterations=1,instance_to_explain=None, categorical=None):
         for iteration in np.arange(0,iterations):
             try:
                 sm = UncertainSMOTE(predict_proba=self.predict_proba,sigma=sigma,sampling_strategy='all',min_samples=self.min_generate_samples,
                                     instance_to_explain=instance_to_explain) 
-                X_train_sample, _ = sm.fit_resample(X_train_sample, np.argmax(self.predict_proba(X_train_sample),axis=1))
+                X_train_sample, _ = sm.fit_resample(X_train_sample, np.argmax(self.predict_proba(self.__process_input(X_train_sample)),axis=1))
             except:
                 warnings.warn("WARNING: Selected class has low number of borderline points.")
 
@@ -400,7 +467,7 @@ class LUX(BaseEstimator):
                 
         X=pd.concat((X,y),axis=1)
         XData = Data.parse_dataframe(X,'lux')
-        return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
+        return [int(eval(f.get_name())) for f in self.uid3.predict(XData.get_instances())]
     
     def justify(self,X, to_dict=False, reduce=True):
         """Traverse down the path for given x."""
@@ -434,9 +501,9 @@ class LUX(BaseEstimator):
         return covered
     
     def counterfactual(self, instance_to_explain, background , counterfactual_representative='medoid', reduce=True, topn=None):
-        not_class = np.argmax(self.predict_proba(instance_to_explain))
+        not_class = np.argmax(self.predict_proba(self.__process_input(instance_to_explain)))
         rules = self.uid3.tree.to_dict(reduce=reduce)
-        bbox_predictions = np.argmax(self.predict_proba(background),axis=1)
+        bbox_predictions = np.argmax(self.predict_proba(self.__process_input(background)),axis=1)
         lux_predictions = self.predict(background)
         background=background[(bbox_predictions==lux_predictions)]
         #filter out rules with class same as not_class
@@ -500,7 +567,7 @@ class LUX(BaseEstimator):
             else:
                 expected_values=[np.mean(v) for v in shap_values]
         except TypeError:
-            explainer = shap.Explainer(self.predict_proba, X_train_sample)
+            explainer = shap.Explainer(self.predict_proba, self.__process_input(X_train_sample))
             shap_values = explainer(X_train_sample).values
             shap_values=[sv for sv in np.moveaxis(shap_values, 2,0)]
             expected_values=[np.mean(v) for v in shap_values]
@@ -515,18 +582,23 @@ class LUX(BaseEstimator):
         
         
     def __importance_sampler(self,X_train_sample,instance_to_explain,num=10):
+        instance_to_explain=instance_to_explain.reshape(1,-1)
+        X_train_sample = pd.concat((pd.DataFrame(instance_to_explain, columns = X_train_sample.columns), X_train_sample))
         shap_values,_ = self.__getshap(X_train_sample)
+        
         abs_shap=  np.array([abs(sv).mean(1) for sv in shap_values])
         indexer = self.classifier.predict(X_train_sample)
         shapclass = []
         
         for i in range(0,len(X_train_sample)):
             #we move sample towards the expected value, which should be decision boundary in balanced, binary case
-            best_index = indexer[i]#[bi for bi in np.argpartition(abs_shap[:,i],2)[-2:] if bi != indexer[i]][0] # this is to select opposite class
+            best_index = int(indexer[i])#[bi for bi in np.argpartition(abs_shap[:,i],2)[-2:] if bi != indexer[i]][0] # this is to select opposite class
             # abs_shap_del = np.delete(abs_shap[:,i],indexer[i])
             # best_index=np.argsort(abs_shap_del)[-1]
             # if indexer[i] <= best_index:
             #     best_index+=1
+            #print(f'Trying to pick {best_index} from the shap_values of length {len(shap_values)}')
+            #print(f'From shap in best index of length {len(shap_values[best_index])}  we pick {i}')
             shapclass.append([shap_values[best_index][i,:]])
         shapclass=np.concatenate(shapclass)
         shapclass=shapclass/np.max(shapclass)
@@ -537,9 +609,14 @@ class LUX(BaseEstimator):
         
         fulldf_all = pd.concat([X_train_sample.reset_index(drop=True), shapdf.reset_index(drop=True)],axis=1)
         fulldf_all.index=X_train_sample.index
-        class_of_i2e=self.classifier.predict(instance_to_explain.reshape(1,-1))
+        class_of_i2e=self.classifier.predict(instance_to_explain)
         predictions = self.classifier.predict(fulldf_all[cols])
-        fulldf=fulldf_all#[predictions==class_of_i2e]
+        fulldf=fulldf_all#[predictions!=class_of_i2e]
+        
+        # if len(fulldf) == 0:
+        #     fulldf = fulldf_all[predictions!=class_of_i2e]
+        # else:
+        #     print(f'Size of fulldf: {len(fulldf)}')
         
         gradsf = {}
         gradst = []
@@ -565,18 +642,26 @@ class LUX(BaseEstimator):
                 gradcl.append(gradient)
             gradsf[cl] =gradcl
             #gradst.append(gradstcl)
-        
+
+        #print(f'Graadsf: {gradsf[0]} for {X_train_sample.shape[1]}')
         # fulldf_all['class'] = predictions
         # centroids = fulldf_all.groupby('class').mean().reset_index()
         # voi = centroids[centroids['class']==class_of_i2e[0]]
         # maxidx = np.max(abs(centroids[cols].values-voi[cols].values), axis=0)
-        alpha=1
         
+        alphashap=abs(shapclass).mean() #FX
+
+        #todo calcualte average distance to opposite class form isntance to explain and use it as alpha
+        meandist = np.max(sklearn.metrics.pairwise_distances(fulldf_all[cols][predictions!=class_of_i2e], Y=instance_to_explain))
         
+        alpha = (np.max(np.abs((fulldf_all[cols][predictions!=class_of_i2e]- instance_to_explain)),axis=0)).values
         
-        #alpha=np.ones(len(cols))*(abs(shapclass).mean())/100
+      #  print(f'Alpha: {alpha} while meandist: {meandist}`')
+        
+        #alpha=np.ones(len(cols))*(abs(shapclass).mean())
         
         def perturb(x,num, alpha, gradients,cols, shapcols):
+            #todo perturb only proximal values?
             newx = []
             last = x[cols].values
             newx.append(last)
@@ -584,25 +669,61 @@ class LUX(BaseEstimator):
             
             grad = np.array([g(last[i]) for i,g in enumerate(gradients[cl])])
             for _ in range(0,num):
-                last =last-alpha*grad
-                if cl != self.classifier.predict(last.reshape(1,-1))[0]:
-                    break
-                cl = self.classifier.predict(last.reshape(1,-1))[0]
+                # cl = self.classifier.predict(last.reshape(1,-1))[0]
+                last =last-alpha/num*np.sign(grad)
+               # print(f'Total Change by: {alpha/num*np.sign(grad)}')
+                # if cl != self.classifier.predict(last.reshape(1,-1))[0]:
+                #     break
+                # grad = np.array([g(last[i]) for i,g in enumerate(gradients[cl])])
+                # newx.append(last)
+                if np.sqrt(np.sum((np.array(last)-instance_to_explain)*(np.array(last)-instance_to_explain))) > meandist:
+                        break
                 grad = np.array([g(last[i]) for i,g in enumerate(gradients[cl])])
-                newx.append(last)
+                newx.append(last.copy())
+            return np.array(newx)
+
+
+        def perturbb(x,num, alpha, gradients,cols, shapcols):
+            #todo perturb only proximal values?
+            newx = []
+            last = x[cols].values
+            newx.append(last)
+            cl = self.classifier.predict(last.reshape(1,-1))[0]
+            
+            grad = np.array([g(last[i]) for i,g in enumerate(gradients[cl])])
+            for d in range(len(cols)):
+                last = x[cols].values
+                for _ in range(0,num):
+                    cl = self.classifier.predict(last.reshape(1,-1))[0]
+                    last[d]-=alpha[d]/num*np.sign(grad[d])
+                #    print(f'Directionsl Change by: {alpha[d]/num*np.sign(grad[d])}')
+                    #if cl != self.classifier.predict(last.reshape(1,-1))[0]:
+                    #    break
+                    if np.sqrt(np.sum((np.array(last)-instance_to_explain)*(np.array(last)-instance_to_explain))) > meandist:
+                        break
+                    grad = np.array([g(last[i]) for i,g in enumerate(gradients[cl])])
+                    newx.append(last.copy())
             return np.array(newx)
 
         #reduce to single instance:
         #fulldf = pd.DataFrame([instance_to_explain], columns=cols)
         
         if fulldf.shape[0] > 0:
-            upsamples = np.concatenate(fulldf.sample(min(1000,len(fulldf))).apply(perturb,args=(num,alpha,gradsf,cols, shapcols),axis=1).values)
-            print(f'Done {len(upsamples)/len(fulldf)} upsampling')
+            #upsamples = np.concatenate(fulldf.sample(min(10,len(fulldf))).apply(perturb,args=(num,alpha,gradsf,cols, shapcols),axis=1).values)
+            #todo perturb only instance
+            upsamplesa = np.concatenate(fulldf_all.iloc[[0]].apply(perturb,args=(int(len(X_train_sample)),alpha,gradsf,cols, shapcols),axis=1).values)
+            
+            upsamplesb = np.concatenate(fulldf_all.iloc[[0]].apply(perturbb,args=(int(len(X_train_sample)/len(cols)),alpha,gradsf,cols, shapcols),axis=1).values)
+            
+            #todo: check the growth of the dataset. If it blowed, downsample
+            #upsamples=upsamples[np.random.choice(upsamples.shape[0], min(2000,len(upsamples)), replace=False), :]
+            print(f'Done {len(upsamplesa)/len(fulldf)} upsampling')
+            print(f'Done {len(upsamplesb)/len(fulldf)} upsampling')
         else:
             print('No upsampling dfone')
             upsamples = fulldf
         
-        return pd.concat((pd.DataFrame(upsamples, columns=X_train_sample.columns),X_train_sample))
+        return pd.concat((pd.DataFrame(upsamplesa, columns=X_train_sample.columns),pd.DataFrame(upsamplesb, columns=X_train_sample.columns),X_train_sample))
         #return pd.DataFrame(upsamples, columns=X_train_sample.columns)#pd.concat((pd.DataFrame(upsamples, columns=X_train_sample.columns),X_train_sample))
 
         
