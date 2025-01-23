@@ -31,11 +31,12 @@ To install from source code::
 
 .. toctree::
    :maxdepth: 2
-   :caption: Examples
+   :caption: Tutorials
 
    Basic Usage examples <basic_examples>
    SHAP-guided explanation generation examples <shap_examples>
    Visualization examples <visualization_examples>
+   Custom model examples <custom_model_examples>
 
 
 .. toctree::
@@ -48,6 +49,7 @@ To install from source code::
    :maxdepth: 1
    :caption: Development
 
+   Troubleshooting <troubleshooting>
    Release notes <release_notes>
    Contributing guide <contributing>
 
