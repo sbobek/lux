@@ -7,7 +7,6 @@ from lux.samplers import UncertainSMOTE
 from lux.pyuid3.data import Data
 from lux.pyuid3.entropy_evaluator import UncertainEntropyEvaluator
 from lux.pyuid3.uid3 import UId3
-from memory_profiler import profile
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import OPTICS
 from sklearn.decomposition import PCA
@@ -110,9 +109,9 @@ class LUX(BaseEstimator):
     # write a getter for classifier
 
     def fit(self, X, y, instance_to_explain, X_importances=None, exclude_neighbourhood=False, use_parity=True,
-            parity_strategy='global', inverse_sampling=True, class_names=None, discount_importance=False,
+            parity_strategy='global', inverse_sampling=False, class_names=None, discount_importance=False,
             uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1, representative='centroid',
-            density_sampling=False, radius_sampling=False, oversampling=True, categorical=None, prune=True,
+            density_sampling=True, radius_sampling=False, oversampling=True, categorical=None, prune=True,
             oblique=True, n_jobs=None):
         """ Fit the LUX explainer model.
 
@@ -332,11 +331,10 @@ class LUX(BaseEstimator):
                                       n_jobs=n_jobs)
         return self
 
-    @profile
     def create_sample_bb(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
-                         use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
-                         representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
-                         oversampling=False, categorical=None, n_jobs=None):
+                         use_parity=True, parity_strategy='global', inverse_sampling=True, class_names=None,
+                         representative='centroid', density_sampling=True, radius_sampling=True, radius=None,
+                         oversampling=True, categorical=None, n_jobs=None):
         """ Create a sample for the LUX explainer to be fitted to, based on the provided data.
 
 
@@ -383,6 +381,7 @@ class LUX(BaseEstimator):
            Sampled importance matrix for features.
         :rtype: pd.DataFrame or None
         """
+        start_time = time.time()
         neighbourhoods = []
         importances = []
 
@@ -399,8 +398,6 @@ class LUX(BaseEstimator):
 
         if use_parity:
             
-            start_time = time.time()
-            
             for instance_to_explain in boundiong_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 instance_class = np.argmax(
@@ -413,7 +410,7 @@ class LUX(BaseEstimator):
                        
                     pca = PCA(n_components=0.95)
                     X_c_only_reduced = pca.fit_transform(X_c_only)
-                    nn_instance_to_explain_reduced = pca.transform(nn_instance_to_explain)                    
+                    nn_instance_to_explain_reduced = pca.transform(nn_instance_to_explain)                   
                     
                     if self.neighborhood_size <= 1.0:
                         n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
@@ -435,7 +432,7 @@ class LUX(BaseEstimator):
                                                                                                 representative=representative,
                                                                                                 categorical=categorical,
                                                                                                 metric=metric,
-                                                                                                nn=None, n_jobs=n_jobs)
+                                                                                                n_neighbors=n_neighbors, n_jobs=n_jobs)
                         neighbourhoods_bbox += neighbourhoods_bbox_inv
                         if X_importances is not None:
                             importances_bbox += importances_bbox_inv
@@ -452,7 +449,7 @@ class LUX(BaseEstimator):
                                 gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
                                                  n=n_neighbors)['index']
                     else:
-                        distances = sklearn.metrics.pairwise_distances(nn_instance_to_explain_reduced, X_c_only_reduced, metric='gower')
+                        distances = sklearn.metrics.pairwise_distances(nn_instance_to_explain_reduced, X_c_only_reduced, metric='euclidean')
                         sorted_indices = np.argsort(distances.flatten())
                         ids_c = sorted_indices[:n_neighbors]
                     neighbourhoods_bbox.append(X_c_only.iloc[ids_c.ravel()])
@@ -464,9 +461,6 @@ class LUX(BaseEstimator):
                 neighbourhoods += neighbourhoods_bbox
                 if X_importances is not None:
                     importances += importances_bbox
-                    
-            end_time = time.time()
-            print(f"Time taken for instance_to_explain: {end_time - start_time} seconds")
 
             X_train_sample = pd.concat(neighbourhoods)
             X_train_sample = X_train_sample[~X_train_sample.index.duplicated(keep='first')]
@@ -615,7 +609,7 @@ class LUX(BaseEstimator):
                     distances = gower.gower_matrix(instance_to_explain_reduced,
                                                        X_train_sample_reduced, cat_features=categorical)
             else:
-                distances = sklearn.metrics.pairwise_distances(X, instance_to_explain_reduced)
+                distances = sklearn.metrics.pairwise_distances(X_train_sample_reduced, instance_to_explain_reduced)
             idxs, _ = np.where(distances <= radius)
             X_train_sample = X.iloc[idxs]
             if X_importances is not None:
@@ -665,6 +659,11 @@ class LUX(BaseEstimator):
                 X_train_sample_arr = np.concatenate(
                     (X_train_sample, np.ones((int(diff), X_train_sample.shape[1])) * instance_to_explain))
                 X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
+                
+        end_time = time.time()
+        print("Time: ", end_time - start_time)
+        # with open(r"execution_time.txt", "w") as file:
+        #     file.write(f"create_sample_bb time: {end_time - start_time} seconds\n")
 
         if X_importances is not None:
             return X_train_sample, X_train_sample_importances
@@ -729,9 +728,9 @@ class LUX(BaseEstimator):
 
         return X_train_sample
 
-    def __inverse_sampling(self, X, y, instance_to_explain, nn, sampling_class_label, opposite_neighbourhood,
+    def __inverse_sampling(self, X, y, instance_to_explain, sampling_class_label, opposite_neighbourhood,
                            X_importances=None, representative='centroid', categorical=None, metric='minkowski',
-                           n_jobs=None):
+                           n_neighbors=5, n_jobs=None):
         """ Samples instances from opposite classes making sure every class is well represented in the representative dataset.
 
         :param X:
@@ -785,14 +784,16 @@ class LUX(BaseEstimator):
                 signature = inspect.signature(gower.gower_topn)
                 has_njobs = 'n_jobs' in signature.parameters
                 if has_njobs:
-                    ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=nn.n_neighbors,
+                    ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=n_neighbors,
                                              cat_features=categorical, n_jobs=n_jobs)['index']
                 else:
-                    ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=nn.n_neighbors,
+                    ids_c = gower.gower_topn(np.array(representative_sample).reshape(1, -1), X_sample, n=n_neighbors,
                                              cat_features=categorical)['index']
             else:
-                nn.fit(X_sample)
-                _, ids_c = nn.kneighbors(np.array(representative_sample).reshape(1, -1))
+                nn_inverse = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
+                nn_inverse.fit(X_sample)
+                _, ids_c = nn_inverse.kneighbors(np.array(representative_sample).reshape(1, -1))
+
             # Save in neighbouirhood and importances
             inverse_neighbourhood.append(X_sample.iloc[ids_c.ravel()])
             if X_importances is not None:
