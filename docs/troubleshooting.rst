@@ -26,7 +26,8 @@ If you are using a model that does not have this method, you need to wrap it wit
 Similarly, if your model requires special input preprocessing before classification (e.g. it only works with OHE categorical features, but you want LUX to produce explanations with original parameters.
 
 You can cope with this issues by wrapping the model around the wrapper that preprocesses the input data before classification and implements the `predict_proba` method.
-The example of tat was given below:
+The example of tat was given below.
+You can also find full working example here `Google Colab example <https://colab.research.google.com/drive/1Yb-VGzsJupTYyyuwA9dEVLYkftuyk4C8?usp=sharing>`_
 
 .. code-block:: python
 
@@ -62,6 +63,33 @@ The example of tat was given below:
             if type(X) is np.ndarray and self.features is not None:
                 X = pd.DataFrame(X,columns=features)
             return self.model.predict_proba(self.ct.transform(X))
+
+What if your model does not have predict proba? If your model predicts only labels, without any way of transforming it into probability-like values,
+you can always transform the probabilities into 0/1 values indicating 100% probability of one of the class, or use decision function to transform the output into probabilities.
+The example of that is given below.
+
+.. code-block:: python
+
+    class ClassifierWrapper(BaseEstimator):
+        def __init__(self, model):
+            self.model = model
+
+        def fit(self, X,y):
+            self.model.fit(X,y)
+            return self
+        def predict(self,X):
+            return self.model.predict(X)
+
+        def predict_proba(self, X):
+            if hasattr(self.model, 'predict_proba'):
+                return self.model.predict_proba(X)
+            elif hasattr(self.model, 'decision_function'):
+                # Sigmoid transformation for decision_function output
+                decision_scores = self.model.decision_function(X)
+                probabilities = 1 / (1 + np.exp(-decision_scores))
+                return np.column_stack([1 - probabilities, probabilities])
+            else:
+                return np.array([self.model.predict(X)==c for c in self.model.classes_]).T
 
 3. **When calling visualize, the instance2explain and counterfactual parameters must be passed as DataFrames**
 
