@@ -104,8 +104,16 @@ class UId3(BaseEstimator):
 
         if classifier is not None and len(data.get_instances()) >= self.NODE_SIZE_LIMIT:
             datadf = data.to_dataframe()
-            try:
-                explainer = shap.Explainer(classifier,datadf.iloc[:,:-1])
+            if datadf.iloc[:,:-1].nunique().eq(1).all():
+                class_att = data.get_class_attribute()
+                root = TreeNode(class_att['name'], data.calculate_statistics(class_att))
+                root.set_type(class_att['type'])
+                tree = Tree(root)
+                if depth == 0:
+                    self.tree = tree
+                return tree
+            try:                
+                explainer = shap.Explainer(classifier, datadf.iloc[:,:-1])
                 if hasattr(explainer, "shap_values"):
                     shap_values = explainer.shap_values(datadf.iloc[:,:-1],check_additivity=False)
                 else:
@@ -327,6 +335,7 @@ class UId3(BaseEstimator):
         if datadf[data.get_class_attribute()['name']].nunique() < 2:
             return 0, 0, None, None, None
         
+        svc_features = [svc_f['name'] for svc_f in svc_features]
         sc = StandardScaler()
         sc.fit(datadf[svc_features])
         datadf.loc[:,svc_features] = sc.transform(datadf.loc[:,svc_features])
@@ -538,7 +547,7 @@ class UId3(BaseEstimator):
  
         return best_split, value_to_split_on, temp_gain, pure_temp_gain
 
-    def predict(self, X: pd.DataFrame):   # should take array-like X -> predict(X)
+    def predict(self, X: pd.DataFrame):
         predictions = []
         for instance in X.to_numpy():
             att_stats = self.tree.predict(instance, list(X.columns))
