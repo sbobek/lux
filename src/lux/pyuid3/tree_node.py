@@ -8,12 +8,12 @@ from .att_stats import AttStats
 
 # Cell
 class TreeNode:
-    def __init__(self, att_name: str, stats: str, edges=[], type=Attribute.TYPE_NOMINAL, infogain = 0):
+    def __init__(self, att_name: str, stats: str, type=Attribute.TYPE_NOMINAL, info_gain = 0):
         self.att = att_name
         self.stats = stats
         self.edges = []
         self.type = type
-        self.infogain = infogain # default value of double is 0
+        self.info_gain = info_gain # default value of double is 0
 
     def get_type(self) -> int:
         return self.type
@@ -21,11 +21,11 @@ class TreeNode:
     def set_type(self, type_of_node: int) -> None:
         self.type = type_of_node
 
-    def get_infogain(self) -> float:
-        return self.infogain
+    def get_info_gain(self) -> float:
+        return self.info_gain
 
-    def set_infogain(self, infogain: float) -> None:
-        self.infogain = infogain
+    def set_info_gain(self, info_gain: float) -> None:
+        self.info_gain = info_gain
 
     def add_edge(self, te) -> None:
         self.edges.append(te)
@@ -35,9 +35,6 @@ class TreeNode:
 
     def get_stats(self) -> str:
         return self.stats
-
-    def set_stats(self, stats: AttStats) -> None:
-        self.stats = stats
 
     def get_att(self) -> str:
         return self.att
@@ -53,6 +50,3 @@ class TreeNode:
 
     def __str__(self):
         return f'{self.get_att()} : {self.stats}'
-
-    def copy(self):
-        return type(self)(att_name=self.att, stats=self.stats.copy(), edges=self.edges.copy(), type=self.type, infogain=self.infogain)

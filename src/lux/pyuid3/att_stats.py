@@ -4,14 +4,12 @@ __all__ = ['AttStats']
 
 # Cell
 from typing import List,Dict
-import pandas as pd
 import numpy as np
 import warnings
 
 
 from .value import Value
 from .attribute import Attribute
-# from pyuid3.data import Data   # may cause problems
 
 # Cell
 class AttStats:
@@ -38,12 +36,12 @@ class AttStats:
             r = instance.get_reading_for_attribute(att_name)
             values = r.get_values()
             for v in values:
-                valname = v.get_name()
-                old = conf_sum.get(valname,None)
+                value_name = v.get_name()
+                old = conf_sum.get(value_name,None)
                 if old is not None: 
-                    conf_sum[valname] +=  v.get_confidence()
+                    conf_sum[value_name] +=  v.get_confidence()
                 else:
-                    conf_sum[valname] = v.get_confidence()
+                    conf_sum[value_name] = v.get_confidence()
             
             avg_conf += r.get_most_probable().get_confidence()
             avg_abs_importance += sum(abs(iv) for iv in r.get_most_probable().get_importances().values())
@@ -60,9 +58,6 @@ class AttStats:
                 stats[stat_k]=(Value(stat_k, stat_v/size))
         return AttStats(stats, avg_conf,avg_abs_importance=avg_abs_importance, total_samples=size, att_type=att.get_type())
 
-
-
-
     def get_statistics(self) -> List[Value]: 
         return list(self.statistics.values())
 
@@ -72,7 +67,6 @@ class AttStats:
     def get_avg_abs_importance(self) -> float:
         return self.avg_abs_importance
 
-    
     def get_stat_for_value(self, value_name: str) -> float:
         #Walkaround in case of numerical values having decimal places, e.g.to make sure  3 == 3.0
         if self.att_type == Attribute.TYPE_NUMERICAL:
@@ -82,13 +76,6 @@ class AttStats:
             return self.statistics[value_name].get_confidence()
         else:
             return 0
-        
-    def get_stat_for_lt_value(self, value_name: str) -> float:        
-        return np.sum([c.get_confidence() for v,c in self.statistics.items() if float(value_name) > float(v)])/self.total_samples
-    
-    def get_stat_for_gte_value(self, value_name: str) -> float:        
-        return np.sum([c.get_confidence() for v,c in self.statistics.items() if float(value_name) <= float(v)])/self.total_samples
-        
 
     def get_most_probable(self) -> Value:
         statistics = list(self.statistics.values())
@@ -96,7 +83,6 @@ class AttStats:
         highest_conf = max(confidence)
         index = confidence.index(highest_conf)
         return  statistics[index]
-   
 
     def __str__(self) -> str:
         result = '{'

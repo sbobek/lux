@@ -17,6 +17,3 @@ class TreeEdge:
 
     def get_child(self) -> 'TreeNode':
         return self.child
-    
-    def copy(self):
-        return type(self)(self.value, self.child.copy())

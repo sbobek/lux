@@ -131,7 +131,7 @@ class Data:
             else:
                 new_instances_greater_equal.append(new_instance)
 
-        return (Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal))
+        return Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal)
     
     def filter_numeric_attribute_value_expr(self, at: Attribute, expr: str, copy : bool = False )-> Tuple['Data','Data']:
         """ Filter the dataset based on the given expression involving a numeric attribute value.
@@ -178,7 +178,7 @@ class Data:
         return Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal)
     
 
-    def get_attribute_of_name(self, att_name: str) -> Attribute:
+    def get_attribute_of_name(self, att_name: str) -> Attribute or None:
         """ Get the attribute object corresponding to the given attribute name.
 
         Parameters:
@@ -194,98 +194,8 @@ class Data:
         """
         return self.attributes.get(att_name, None)
 
-    def to_arff_skip_instance(self, epsilon: float) -> str:
-        """ Convert the dataset to ARFF format skipping instances where the confidence of the most probable value
-        is less than or equal to the given epsilon.
-
-        Parameters:
-        -----------
-        :param epsilon: float
-            The threshold confidence value. Instances with a confidence value less than or equal to epsilon will be skipped.
-
-        Returns:
-        --------
-        :return: str
-            The dataset in ARFF format skipping instances where the confidence of the most probable value is less than or equal to epsilon.
-        """
-        result = '@relation ' + self.name + '\n'
-        for at in self.attributes:
-            result += at.to_arff() + '\n'
-
-        result += '@data\n'
-
-        for i in self.instances:
-            partial = ''
-            for r in i.get_readings():
-                if r.get_most_probable().get_confidence() > epsilon:
-                    partial += r.get_most_probable().get_name()
-                else:
-                    break
-                partial += ','
-            result = result[:-1]  # delete the last coma ','
-            result += partial + '\n'
-
-        return result
-
-    def to_arff_skip_value(self, epsilon: float) -> str:
-        """ Convert the dataset to ARFF format, replacing attribute values with '?' if their confidence is less than or equal to the given epsilon.
-
-        Parameters:
-        -----------
-        :param epsilon: float
-            The threshold confidence value. Attribute values with a confidence value less than or equal to epsilon will be replaced with '?'.
-
-        Returns:
-        --------
-        :return: str
-            The dataset in ARFF format with attribute values replaced with '?' if their confidence is less than or equal to epsilon.
-        """
-        result = '@relation ' + self.name + '\n'
-        for at in self.attributes:
-            result += at.to_arff() + '\n'
-
-        result += '@data\n'
-
-        for i in self.instances:
-            partial = ''
-            for r in i.get_readings():
-                if r.get_most_probable().get_confidence() > epsilon:
-                    partial += r.get_most_probable().get_name()
-                else:
-                    partial += '?'
-                partial += ','
-            result = result[:-1]  # delete the last coma ','
-            result += partial + '\n'
-
-        return result
-
-    def to_uarff(self) -> str:
-        """
-       Convert the dataset to UARFF (Uncertain ARFF) format.
-
-       Returns:
-       --------
-       :return: str
-           The dataset in UARFF format.
-       """
-        result = '@relation ' + self.name + '\n'
-        for at in self.attributes:
-            result += at.to_arff() + '\n'
-
-        result += '@data\n'
-
-        for i in self.instances:
-            result += i.to_arff() + '\n'
-
-        return result
-
-    def to_dataframe(self,most_probable=True) -> pd.DataFrame:
+    def to_dataframe(self) -> pd.DataFrame:
         """ Convert the dataset to a pandas DataFrame.
-
-        Parameters:
-        -----------
-        :param most_probable: bool, optional (default=True)
-            Whether to use the most probable values for each attribute. In current version there is no other option than True.
 
         Returns:
         --------
@@ -386,7 +296,6 @@ class Data:
                     importance_dict[cl] = r[cl][att]
                 new_confidence_values = [Value(v.get_name(),v.get_confidence(), importance_dict) for v in reading.values]
                 altered_reading = Reading(reading.get_base_att(), new_confidence_values)
-                #use add_reading, as it will replace the previous one
                 new_instance = Instance(new_readings)
                 new_instance.add_reading(altered_reading)
             new_instances.append(new_instance)
@@ -419,7 +328,6 @@ class Data:
             else:
                 discounted_confidence_values = [Value(v.get_name(),v.get_confidence(), {key: value * (1-discount_factor) for key, value in v.get_importances().items() if key==for_class}) for v in reading.values]
             discounted_reading = Reading(reading.get_base_att(), discounted_confidence_values)
-            #use add_reading, as it will replace the previous one
             new_instance = Instance(new_readings)
             new_instance.add_reading(discounted_reading)
             new_instances.append(new_instance)
@@ -495,13 +403,6 @@ class Data:
             value = i.get_reading_for_attribute(a.get_name()).get_most_probable().get_name()
             domain.add(value)
         return domain
-
-    @staticmethod
-    def parse_ucsv(filename: str) -> 'Data':
-        df = pd.read_csv(filename)
-        name = filename.split('/')[-1].split('.csv')[0]
-        out = Data.__read_ucsv_from_dataframe(df, name)
-        return out
 
     @staticmethod
     def parse_dataframe(df: pd.DataFrame,name='uarff_data',categorical:List[bool]=None) -> 'Data':
@@ -583,7 +484,7 @@ class Data:
         return Attribute(name, domain, type)
 
     def get_instances(self) -> List[Instance]:
-        return self.instances#.copy()
+        return self.instances
 
     def get_attributes(self) -> List[Attribute]:
         return list(self.attributes.values())

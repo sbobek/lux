@@ -9,12 +9,10 @@ import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 
 from .attribute import Attribute
-from .data import Data
-from .entropy_evaluator import EntropyEvaluator, UncertainEntropyEvaluator
+from .entropy_evaluator import UncertainEntropyEvaluator
 from .tree import Tree
 from .tree_node import TreeNode
 from .tree_edge import TreeEdge
-from .tree_evaluator import TreeEvaluator
 from .value import Value
 from .utils import StandardRescaler
 from multiprocessing import cpu_count,Pool
@@ -66,8 +64,8 @@ class UId3(BaseEstimator):
         self.tree = None
         self.node_size_limit = node_size_limit
         self.min_impurity_decrease=min_impurity_decrease
-        
-    def fit(self, data, y=None, *, depth,  entropyEvaluator, classifier=None, beta=1, discount_importance = False, prune=False, oblique=False,  n_jobs=None): 
+
+    def fit(self, data, depth, entropyEvaluator, classifier=None, beta=1, discount_importance = False, prune=False, oblique=False,  n_jobs=None):
         """Fits pyUID3 tree, optionally using SHAP values calculated for the classifier.
 
         Parameters
@@ -84,7 +82,7 @@ class UId3(BaseEstimator):
         classifier: optional
             A classifier that is designed according to sckit paradigm. It is required from the classifier to have predict_proba function. Default is None
         beta: int
-            Parameter being a weight in harmonic mean between score obtained from EntropyEvaluator and SHAP values. 
+            Parameter being a weight in harmonic mean between score obtained from EntropyEvaluator and SHAP values.
             The greater the value the more important are SHAP values when selecting a split. Default is 1.
         discount_importance: boolean,
             Parameter indicating if the SHAP importances should be calculated resively at every split, or if the importances calculated for the whole data should be used.
@@ -95,7 +93,7 @@ class UId3(BaseEstimator):
             Define if the tree should assume building linear slipts, instead of simple inequality-based spolits. Deafult False.
         n_jobs: int, optional
             Number of processess to use when building a tree. Default is None
-        
+
 
         Returns
         -------
@@ -121,8 +119,8 @@ class UId3(BaseEstimator):
                 shap_values = explainer(datadf.iloc[:,:-1]).values
                 shap_values=[sv for sv in np.moveaxis(shap_values, 2,0)]
                 expected_values=[np.mean(v) for v in shap_values]
-            
-            
+
+
             if type(shap_values) is not list:
                 shap_values = [-shap_values, shap_values]
                 expected_values=[np.mean(v) for v in shap_values]
@@ -131,14 +129,14 @@ class UId3(BaseEstimator):
             #find max and rescale:
             maxshap = max([np.max(np.abs(sv)) for sv in shap_values]) #ADD
             shap_values = [sv/maxshap for sv in shap_values] #ADD
-            
+
             shap_dict={}
             expected_dict={}
             for i,v in enumerate(shap_values):
                 shap_dict[str(i)] = pd.DataFrame(v, columns = datadf.columns[:-1])
                 expected_dict[str(i)] = expected_values[i] #/maxshap #ADD
             data = data.set_importances(pd.concat(shap_dict,axis=1).fillna(0), expected_values = expected_dict)
-        
+
         if len(data.get_instances()) < self.NODE_SIZE_LIMIT:
             return None
         if self.TREE_DEPTH_LIMIT is not None and depth > self.TREE_DEPTH_LIMIT:
@@ -161,7 +159,7 @@ class UId3(BaseEstimator):
 
         info_gain = 0
         best_split = None
-        
+
         cl=[]
         for i in data.get_instances():
             cl.append(i.get_reading_for_attribute(data.get_class_attribute()).get_most_probable().get_name())
@@ -171,25 +169,23 @@ class UId3(BaseEstimator):
             if n_jobs == -1:
                 n_jobs=n_jobs_inner = cpu_count()
             if len(data)/n_jobs_inner < UId3.PARALLEL_ENTRY_FACTOR:
-                n_jobs_inner = max(1,int(len(data)/UId3.PARALLEL_ENTRY_FACTOR)) 
+                n_jobs_inner = max(1,int(len(data)/UId3.PARALLEL_ENTRY_FACTOR))
             if n_jobs > len(data.get_attributes()):
                 n_jobs = len(data.get_attributes())-1
             if (len(data)*len(data.get_attributes()))/n_jobs < UId3.PARALLEL_ENTRY_FACTOR:
                 n_jobs = max(1,int((len(data)*len(data.get_attributes()))/UId3.PARALLEL_ENTRY_FACTOR))
         else:
             n_jobs = 1
-            
+
         gains = []
         if n_jobs > 1 and n_jobs_inner < len(data.get_attributes()):
             with Pool(n_jobs) as pool:
                 results = pool.starmap(UId3.try_attribute_for_split, [(data, a, cl, entropy,  entropyEvaluator,self.min_impurity_decrease, beta, 1,classifier is not None) for a in data.get_attributes() if a != data.get_class_attribute()])
-                temp_gain = 0
                 for temp_gain, pure_temp_gain, best_split_candidate in results:
                     if best_split_candidate is not None:
                         gains.append((temp_gain,pure_temp_gain,best_split_candidate))
                     if temp_gain > info_gain and (pure_temp_gain/entropy)>=self.min_impurity_decrease:
                         info_gain = temp_gain
-                        pure_info_gain=pure_temp_gain
                         best_split = best_split_candidate
         else:
             for a in data.get_attributes():
@@ -200,7 +196,6 @@ class UId3(BaseEstimator):
                     gains.append((temp_gain,pure_temp_gain,best_split_candidate))
                 if temp_gain > info_gain and (pure_temp_gain/entropy)>=self.min_impurity_decrease:
                     info_gain = temp_gain
-                    pure_info_gain=pure_temp_gain
                     best_split = best_split_candidate
 
         ###########################################
@@ -214,21 +209,19 @@ class UId3(BaseEstimator):
                 features = [f for f in data.get_attributes() if f not in [data.get_class_attribute().get_name()]]
                 svc_features = [features[i] for i in idd]
                 svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att,svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=True)
-   
+
             elif len(gains) > 1:
                 #take two most importnat selected by Dtree
                 gains = sorted(gains,key=lambda x: x[0],reverse=True)
                 svc_features = [gains[0][2].get_name(),gains[1][2].get_name()]
                 svm_temp_gain, pure_svm_temp_gain, svm_best_splitting_att, svm_best_linear_att, boundary_expression = UId3.get_oblique_gains(data, svc_features,entropyEvaluator, entropy, beta, shap=False)
-        
+
             if svm_temp_gain > info_gain and (pure_svm_temp_gain/entropy)>=self.min_impurity_decrease:
-                info_gain = svm_temp_gain
-                pure_info_gain=pure_svm_temp_gain
                 best_split = svm_best_splitting_att
                 best_split.set_value_to_split_on(boundary_expression)
 
         ###########################################
-        
+
         # if nothing better can happen
         if best_split == None:
             # create the only node and summary for it
@@ -245,7 +238,7 @@ class UId3(BaseEstimator):
         class_stats = data.calculate_statistics(class_att)
         root = TreeNode(best_split.get_name(), class_stats)
         root.set_type(class_att.get_type())
-        
+
         classes = []
         # attach newly created trees
         for val in best_split.get_splittable_domain():
@@ -260,20 +253,20 @@ class UId3(BaseEstimator):
                         new_data = new_data.reduce_importance_for_attribute(svm_best_linear_att, best_split.get_importance_gain()/entropy/2.0)
                     else:
                         new_data = new_data.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy)
-                    
+
                     subtree = self.fit(new_data, discount_importance=True, classifier=None, entropyEvaluator=entropyEvaluator, depth=depth + 1,beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs)
-                
+
                 if subtree and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
                     if subtree.get_root().is_leaf():
                         classes.append(subtree.get_root().get_stats().get_most_probable().get_name())
                     root.add_edge(TreeEdge(Value(val, best_split_stats.get_avg_confidence()), subtree.get_root()))
-                    root.set_infogain(best_split.get_importance_gain())
+                    root.set_info_gain(best_split.get_importance_gain())
 
             elif best_split.get_type() == Attribute.TYPE_NUMERICAL:
                 best_split_stats = data.calculate_statistics(best_split)
                 new_data_less_then,new_data_greater_equal = data.filter_numeric_attribute_value_expr(best_split, val)
-                
-                
+
+
                 if len(new_data_less_then) >= self.node_size_limit and len(new_data_greater_equal) >= self.node_size_limit:
                     if not discount_importance:
                         subtree_less_than = self.fit(new_data_less_then, classifier=classifier, entropyEvaluator=entropyEvaluator, depth=depth + 1, beta=beta, prune=prune, oblique=oblique,n_jobs=n_jobs)
@@ -282,17 +275,17 @@ class UId3(BaseEstimator):
                         if oblique and svm_temp_gain > 0:
                             new_data_less_then = new_data_less_then.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy/2.0)
                             new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy/2.0)
-                            
+
                             new_data_less_then = new_data_less_then.reduce_importance_for_attribute(svm_best_linear_att, best_split.get_importance_gain()/entropy/2.0)
                             new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(svm_best_linear_att, best_split.get_importance_gain()/entropy/2.0)
                         else:
                             new_data_less_then = new_data_less_then.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy)
                             new_data_greater_equal = new_data_greater_equal.reduce_importance_for_attribute(best_split, best_split.get_importance_gain()/entropy)
-                        
-                        
+
+
                         subtree_less_than = self.fit(new_data_less_then, classifier=None,  entropyEvaluator=entropyEvaluator, depth=depth + 1, discount_importance=True,beta=beta, prune=prune,oblique=oblique, n_jobs=n_jobs)
                         subtree_greater_equal = self.fit(new_data_greater_equal, classifier=None, entropyEvaluator=entropyEvaluator, depth=depth + 1, discount_importance=True,beta=beta, prune=prune, oblique=oblique,n_jobs=n_jobs)
-                        
+
                     if subtree_less_than and best_split_stats.get_most_probable().get_confidence() > self.GROW_CONFIDENCE_THRESHOLD:
                         root.add_edge(TreeEdge(Value("<" + val, best_split_stats.get_avg_confidence()), subtree_less_than.get_root()))
                         if subtree_less_than.get_root().is_leaf():
@@ -302,12 +295,12 @@ class UId3(BaseEstimator):
                         if subtree_greater_equal.get_root().is_leaf():
                             classes.append(subtree_greater_equal.get_root().get_stats().get_most_probable().get_name())
                     root.set_type(Attribute.TYPE_NUMERICAL)
-                    root.set_infogain(best_split.get_importance_gain())
+                    root.set_info_gain(best_split.get_importance_gain())
 
         #If all of the leaves predict same class, simply remove them, when prune is True
         if prune and len(classes) == len(root.get_edges()) and len(set(classes)) < 2:
             root.set_edges([])
-        
+
         if len(root.get_edges()) == 0:
             root.set_att(data.get_class_attribute().get_name())
             root.set_type(data.get_class_attribute().get_type())
@@ -523,24 +516,6 @@ class UId3(BaseEstimator):
             best_split = attribute
  
         return best_split, value_to_split_on, temp_gain, pure_temp_gain
-
-    @staticmethod
-    def fit_uncertain_nominal() -> None:
-        data = Data.parse_uarff("../resources/machine.nominal.uncertain.arff")
-        test = Data.parse_uarff("../resources/machine.nominal.uncertain.arff")
-
-        t = UId3.fit(data, UncertainEntropyEvaluator(), 0)
-        br = TreeEvaluator.train_and_test(t, test)
-
-        print("###############################################################")
-        print(f"Correctly classified instances: {br.get_accuracy() * 100}%")
-        print(f"Incorrectly classified instances: {(1-br.get_accuracy()) * 100}%")
-        print("TP Rate", "FP Rate", "Precision", "Recall", "F-Measure", "ROC Area", "Class")
-
-        for class_label in data.get_class_attribute().get_domain():
-            cs = br.get_stats_for_label(class_label)
-            print(cs.get_TP_rate(), cs.get_FP_rate(), cs.get_precision(), cs.get_recall(), cs.get_F_measure(),
-                                cs.get_ROC_area(br), cs.get_class_label())
 
     def predict(self, X):   # should take array-like X -> predict(X)
         if not isinstance(X, (list, np.ndarray)):

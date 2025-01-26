@@ -23,7 +23,7 @@ class Tree:
     def get_root(self) -> TreeNode:
         return self.root
 
-    def predict(self, i: Instance) -> AttStats:
+    def predict(self, i: Instance) -> str:
         test_node = self.get_root()
         while not test_node.is_leaf():
             att_to_test = test_node.get_att()
@@ -37,7 +37,7 @@ class Tree:
                         new_node = te.get_child()
                         break
                 elif test_node.get_type() == Attribute.TYPE_NUMERICAL:
-                    tev = te.get_value().compile_expr(i)#.get_name()                    
+                    tev = te.get_value().compile_expr(i)#.get_name()
                     if eval(f'{most_probable.get_name()}{tev}'):
                         new_node = te.get_child()
                         break
@@ -85,24 +85,8 @@ class Tree:
 
         return Tree(root=root_handle)
 
-    def error(self, i: Instance) -> bool:
-        result = self.predict(i)
-
-        return result.get_most_probable().get_name() == i.get_readings().get_last().get_most_probable().get_name()
-
     def get_attributes(self) -> set:
         return self.fill_attributes(set(), self.root)
-
-    def get_importances(self) -> str:
-        imps = []
-        atts = self.get_attributes()
-        for a in atts:
-            if a.get_name() == self.get_class_attribute().get_name():
-                break
-            imps.append(str(a.get_importance_gain()))
-            print(a, a.get_importance_gain(), "============================")
-
-        return ','.join(imps)
 
     def to_HMR(self) -> str:
         result = "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%\n\n"
@@ -228,7 +212,6 @@ class Tree:
         rules = self.get_rules()
         decision_att = self.get_class_attribute().get_name()
         dec_att = self.get_class_attribute()
-        cond_atts = Attribute()
         cond_atts_list = list(atts)
         cond_atts_list.remove(dec_att)
 
@@ -239,8 +222,6 @@ class Tree:
             for att in atts:
                 if att.get_name() == self.get_class_attribute().get_name():
                     continue
-
-                value = Value("any", 1.0)
 
                 for c in rule:
                     if c.att_name == att.get_name():
@@ -281,8 +262,9 @@ class Tree:
 
 
         return result
-    
-    def __reduce_condition(self, conditions: list, operators_mapping: dict) -> list:
+
+    @staticmethod
+    def __reduce_condition(conditions: list, operators_mapping: dict) -> list:
         #only for numerical and non-linear split
         result = []
         lt = [c for c in conditions if operators_mapping['<'] in c]
@@ -352,10 +334,10 @@ class Tree:
         return self.fill_rules([], None, self.get_root())
 
     def fill_attributes(self, result=None, root=None) -> set:
-         if result != None and root!= None:
+         if result is not None and root is not None:
             att_name = root.get_att()
             att = Attribute(att_name, set(), root.get_type())
-            att.set_importance_gain(root.get_infogain())
+            att.set_importance_gain(root.get_info_gain())
             if att in result:
                 for tmp in result:
                     if tmp == att:

@@ -2,10 +2,8 @@
 
 __all__ = ['Value']
 
-
 # Cell
 from typing import Dict
-#from .instance import Instance # causes circular import
 
 class Value:
     def __init__(self, name: str, confidence: float, importances : Dict= None ):
@@ -19,8 +17,7 @@ class Value:
 
     def get_name(self) -> str:
         return self.name
-    
-    #TODO: circular import makes it a mess, so no Instance definition here
+
     def compile_expr(self, i) -> 'Value':
         readings = i.get_readings()
         expr = self.get_name()
@@ -33,9 +30,6 @@ class Value:
     
     def get_importances(self) -> Dict:
         return self.importances
-    
-    def get_importance_for_class(class_label:str) -> float:
-        return importances[class_label]
 
     def __str__(self) -> str:
         return self.get_name() + '[' + str(round(self.get_confidence() * 100.0) / 100.0) + ']'
