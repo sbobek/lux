@@ -3,9 +3,6 @@
 __all__ = ['Data']
 
 # Cell
-from io import TextIOWrapper, StringIO
-import traceback
-import re
 import warnings
 import pandas as pd
 import numpy as np
@@ -21,31 +18,32 @@ from .attribute import Attribute
 
 # Cell
 class Data:
-    REAL_DOMAIN = '@REAL'
 
     def __init__(self, name: str = None, attributes: List[Dict] = None, instances: List[Dict] = None):
-        """ Initialize a Data object.
+        """ 
+        Initialize a Data object.
 
-                Parameters:
-                -----------
-                :param name: str, optional
-                    The name of the dataset.
-                :param attributes: List[Attribute], optional
-                    List of attribute objects defining the dataset's attributes.
-                :param instances: List[Instance], optional
-                    List of instance objects containing the dataset's instances.
+        Parameters:
+        -----------
+        :param name: str, optional
+            The name of the dataset.
+        :param attributes: List[Dict], optional
+            List of attribute Dict defining the dataset's attributes.
+        :param instances: List[Dict], optional
+            List of instance Dict containing the dataset's instances.
         """
         self.name = name
         self.instances = instances
         self.attributes = OrderedDict()
         self.expected_values = dict()
+        self.class_attribute_name = None
+
         for at in attributes:
             self.attributes[at['name']]=at
             
         if len(attributes) > 0:
             self.class_attribute_name = attributes[-1]['name']
-        else:
-            self.class_attribute_name = None
+
         self.__df__=None
         
     def __len__(self):
@@ -59,13 +57,13 @@ class Data:
         """
         return len(self.instances)
 
-    def filter_nominal_attribute_value(self, at: Attribute, value: str, copy : bool =False) -> 'Data':
+    def filter_nominal_attribute_value(self, at: Dict, value: str, copy : bool =False) -> 'Data':
         """ Filter the dataset based on the given nominal attribute value.
 
         Parameters:
         -----------
-        :param at: Attribute
-            The attribute to filter.
+        :param at: Dict
+            The attribute Dict to filter.
         :param value: str
             The value to filter.
         :param copy: bool, optional
@@ -91,13 +89,13 @@ class Data:
 
         return Data(self.name, new_attributes, new_instances)
 
-    def filter_numeric_attribute_value(self, at: Attribute, value: str, copy : bool = False )-> Tuple['Data','Data']:
+    def filter_numeric_attribute_value(self, at: Dict, value: str, copy : bool = False )-> Tuple['Data','Data']:
         """ Filter the dataset based on the given numeric attribute value.
 
        Parameters:
        -----------
-       :param at: Attribute
-           The attribute to filter.
+       :param at: Dict
+           The attribute Dict to filter.
        :param value: str
            The value to filter.
        :param copy: bool, optional
@@ -119,7 +117,7 @@ class Data:
             reading = i['readings'][at['name']]
             instance_val = reading['most_probable']['name']
             if copy:
-                new_instance = {'readings': i['readings'].copy()}
+                new_instance = i.copy()
             else:
                 new_instance = i
                 
@@ -130,13 +128,13 @@ class Data:
 
         return (Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal))
     
-    def filter_numeric_attribute_value_expr(self, at: Attribute, expr: str, copy : bool = False )-> Tuple['Data','Data']:
+    def filter_numeric_attribute_value_expr(self, at: Dict, expr: str, copy : bool = False)-> Tuple['Data','Data']:
         """ Filter the dataset based on the given expression involving a numeric attribute value.
 
         Parameters:
         -----------
-        :param at: Attribute
-            The attribute to filter.
+        :param at: Dict
+            The attribute Dict to filter.
         :param expr: str
             The expression to evaluate. It can involve comparisons and arithmetic operations with the attribute value.
         :param copy: bool, optional
@@ -158,7 +156,7 @@ class Data:
             reading = i['readings'][at['name']]
             instance_val = reading['most_probable']['name']
             if copy:
-                new_instance = {'readings': i['readings'].copy()}
+                new_instance = i.copy()
             else:
                 new_instance = i
                 
@@ -175,8 +173,8 @@ class Data:
         return (Data(self.name, new_attributes_lt, new_instances_less_than),Data(self.name, new_attributes_gt, new_instances_greater_equal))
     
 
-    def get_attribute_of_name(self, att_name: str) -> Attribute:
-        """ Get the attribute object corresponding to the given attribute name.
+    def get_attribute_of_name(self, att_name: str) -> Dict:
+        """ Get the attribute Dict corresponding to the given attribute name.
 
         Parameters:
         -----------
@@ -185,8 +183,8 @@ class Data:
 
         Returns:
         --------
-        :return: Attribute
-            The attribute object corresponding to the given attribute name.
+        :return: Dict
+            The attribute Dict corresponding to the given attribute name.
             Returns None if the attribute name is not found in the dataset.
         """
         return self.attributes.get(att_name, None)
@@ -197,7 +195,8 @@ class Data:
         Parameters:
         -----------
         :param most_probable: bool, optional (default=True)
-            Whether to use the most probable values for each attribute. In current version there is no other option than True.
+            Whether to use the most probable values for each attribute. 
+            In current version there is no other option than True.
 
         Returns:
         --------
@@ -256,8 +255,8 @@ class Data:
 
         Parameters:
         -----------
-        :param att: Attribute
-            The attribute for which statistics are to be calculated.
+        :param att: Dict
+            The attribute Dict for which statistics are to be calculated.
 
         Returns:
         --------
@@ -305,13 +304,13 @@ class Data:
 
         return Data(self.name, self.get_attributes().copy(), new_instances)
 
-    def reduce_importance_for_attribute(self, att: Attribute, discount_factor: float, for_class : str = None) -> 'Data':
+    def reduce_importance_for_attribute(self, att: Dict, discount_factor: float, for_class : str = None) -> 'Data':
         """ Reduce the importance of a specific attribute by a given discount factor.
 
         Parameters:
         -----------
-        :param att: Attribute
-            The attribute for which importance needs to be reduced.
+        :param att: Dict
+            The attribute Dict for which importance needs to be reduced.
         :param discount_factor: float
             The discount factor by which to reduce the importance.
         :param for_class: str, optional (default=None)
@@ -339,8 +338,27 @@ class Data:
         return Data(self.name, self.get_attributes().copy(), new_instances)
 
     @staticmethod
-    def __read_ucsv_from_dataframe(df: DataFrame, importances: DataFrame, name: str, categorical:List[bool]=None) -> 'Data':
-        
+    def __read_from_dataframe(df: pd.DataFrame, importances: pd.DataFrame=None, name: str="uarff_data", categorical:List[bool]=None) -> 'Data':
+        """ Convert pandas Dataframe with importances to Data
+
+        Parameters:
+        -----------
+        :param df: pd.Dataframe
+            Pandas Dataframe with attribute values
+        :param importances: pd.Dataframe, optional (default=None)
+            Pandas Dataframe with importances associated to values.
+            If not provided importances are set to 1 for each value 
+        :param name: str, optional (default="uarff_data")
+            Name of the resulting Data object
+        :param categorical: List[bool], optional (default=None)
+            List that specifies which of DataFrame columns are categorical
+            If not provided every column except result is classed as numerical
+
+        Returns:
+        --------
+        :return: Data
+            A new Data object with values loaded from provided DataFrames
+        """
         atts = []
         cols = df.columns
         if categorical is None:
@@ -394,30 +412,50 @@ class Data:
         return tmp_data
 
     def update_attribute_domains(self):
+        """ 
+        Set attribute domains for numerical values
+        """
         self.__df__ = None
         for a in self.get_attributes():
             if a['type'] == Attribute.TYPE_NUMERICAL:
-                domain = self.__get_domain_from_data(a, self.instances)
+                domain = self.__get_domain_from_data(a)
                 a['domain'] = domain
 
-    def __get_domain_from_data(self, a: Dict, instances: List[Dict]) -> Set[str]:
+    def __get_domain_from_data(self, a: Dict) -> Set[str]:
+        """ 
+        Get attribute domains for specific attribute from all gathered Data
+
+        Parameters:
+        -----------
+        :param a: Dict
+            The attribute Dict for which domain needs to be found.
+            
+        Returns:
+        --------
+        :return: Set[str]
+            A set of values representing domain of given attribute
+        """
         domain = set()
-        for i in instances:
+        for i in self.instances:
             value = i['readings'][a['name']]['most_probable']['name']
             domain.add(value)
         return domain
 
     @staticmethod
     def parse_ucsv(filename: str) -> 'Data':
+        """ 
+        Parse DataFrame from csv to Data object
+        """
         df = pd.read_csv(filename)
         name = filename.split('/')[-1].split('.csv')[0]
-        out = Data.__read_ucsv_from_dataframe(df, None, name)
-        return out
+        return Data.__read_from_dataframe(df, name=name)
 
     @staticmethod
-    def parse_dataframe(df: pd.DataFrame, df_imps = None, name='uarff_data',categorical:List[bool]=None) -> 'Data':
-        out = Data.__read_ucsv_from_dataframe(df, df_imps, name, categorical)
-        return out
+    def parse_dataframe(df: pd.DataFrame, df_imps=None, name='uarff_data',categorical:List[bool]=None) -> 'Data':
+        """ 
+        Parse pd.DataFrame to Data object
+        """
+        return Data.__read_from_dataframe(df, df_imps, name, categorical)
 
     def get_instances(self) -> List[Dict]:
         return self.instances

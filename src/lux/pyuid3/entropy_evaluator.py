@@ -30,7 +30,7 @@ class UncertainEntropyEvaluator():
         entropy = sum(map(lambda v: -v['confidence'] * math.log2(v['confidence'])  if v['confidence'] != 0 else 0, probs.get_statistics()))
         return entropy
 
-    def calculate_raw_entropy(self, labels: list,base: int = 2) -> float:
+    def calculate_raw_entropy(self, labels: list, base: int = 2) -> float:
         value,counts = np.unique(labels, return_counts=True)
         return entropy(counts, base=base)
     

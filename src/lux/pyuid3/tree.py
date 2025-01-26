@@ -3,7 +3,7 @@
 __all__ = ['Tree']
 
 # Cell
-from typing import Dict
+from typing import List, Dict
 from .tree_node import TreeNode
 from .att_stats import AttStats
 from .attribute import Attribute
@@ -232,7 +232,7 @@ class Tree:
 
         return result
 
-    def to_dict(self, reduce = True, operators_mapping=None) -> str:
+    def to_dict(self, reduce = True, operators_mapping=None) -> List[Dict]:
         result = []
         if operators_mapping is None:
             operators_mapping = {'if':'IF',
@@ -250,13 +250,13 @@ class Tree:
         rules = self.get_rules()
         decision_att = self.get_class_attribute()['name']
         dec_att = self.get_class_attribute()
-        cond_atts = {'name': None, 'domain': None, 'type': None, 'value_to_split_on': '', 'info_gain': 0.0}
+        #cond_atts = {'name': None, 'domain': None, 'type': None, 'value_to_split_on': '', 'info_gain': 0.0}
         cond_atts_list = list(atts)
         for elem in cond_atts_list:
             if elem['name'] == dec_att['name']:
                 cond_atts_list.remove(elem)
 
-        for i, rule in enumerate(rules):
+        for rule in rules:
             conditions = []
             condition_values=[]
             #conditions
@@ -343,7 +343,7 @@ class Tree:
             f.write(self.to_dot(parent=None,fmt=fmt))
         f.close()
 
-    def get_class_attribute(self) -> Attribute:
+    def get_class_attribute(self) -> Dict:
         temp  = self.root
         while not temp.is_leaf():
             temp = temp.get_edges()[0].get_child()

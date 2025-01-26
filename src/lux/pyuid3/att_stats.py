@@ -21,12 +21,12 @@ class AttStats:
         self.total_samples = total_samples
 
     @staticmethod
-    def calculate_statistics(att: Attribute, data) -> 'AttStats':    # TODO: rename to get_stats
+    def calculate_statistics(att: Dict, data) -> 'AttStats':
         conf_sum = {}
         avg_conf = 0
         avg_abs_importance = 0
 
-        instances = data.instances #get_instances() #no_need2copy
+        instances = data.instances #no_need2copy
 
         if instances is None or len(instances) == 0:
             return AttStats(conf_sum, avg_conf, avg_abs_importance,0, att['type'])
@@ -101,5 +101,5 @@ class AttStats:
         result += '}'
         return result
     
-    def copy(self):
-        return type(self)(statistics=self.statistics.copy(), avg_confidence=self.avg_confidence ,avg_abs_importance=self.avg_abs_importance,att_type=self.att_type , total_samples=self.total_samples )
+    def copy(self) -> 'AttStats':
+        return type(self)(statistics=self.statistics.copy(), avg_confidence=self.avg_confidence ,avg_abs_importance=self.avg_abs_importance,att_type=self.att_type , total_samples=self.total_samples)
