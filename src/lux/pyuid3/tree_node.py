@@ -50,3 +50,6 @@ class TreeNode:
 
     def __str__(self):
         return f'{self.get_att()} : {self.stats}'
+    
+    def copy(self):
+        return type(self)(att_name=self.att, stats=self.stats.copy(), type=self.type, info_gain=self.info_gain)
