@@ -2,6 +2,7 @@ Basic usage examples
 =============
 
 The basic usage of LUX is similar to usage oof any of the scikit models that contains fit and predict functions.
+The working online code of the following example can be run here: `Google Colab basic usage example <https://colab.research.google.com/drive/123h5BdTfOK7adhe8nvvd7UPtNPBIuTgL>`_
 
 .. code-block:: python
 
@@ -42,11 +43,11 @@ The basic usage of LUX is similar to usage oof any of the scikit models that con
 
 
 
-As a result you obtain an explanation that says that if petal_length is grater than 4.89 than the class is 2.
+As a result you obtain an explanation that says that if petal_length is less than 2.44 than the class is 0.
 
 .. code-block::
 
-    ['IF petal_length >=4.8999998569488525 THEN class = 2 # 1.0\n']
+    ['IF petal_length <2.449999988079071 THEN class = 0 # 1.0\n']
 
 You can obtain  counterfactual explanation for this examples as well:
 
@@ -60,13 +61,13 @@ As a result you will get
 
 .. code-block::
 
-    Counterfactual for [[7.7 3.  6.1 2.3]] to change from class 2 to class 1:
-    sepal_length    7.0
-    sepal_width     3.2
-    petal_length    4.7
-    petal_width     1.4
+    Counterfactual for [[5.4 3.4 1.5 0.4]] to change from class 0 to class 1:
+    sepal_length    5.1
+    sepal_width     2.5
+    petal_length    3.0
+    petal_width     1.1
 
-Finally, the explanations can be visulized with the following code:
+Finally, the explanations can be visualized with the following code:
 
 .. code-block:: python
 

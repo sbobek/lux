@@ -13,7 +13,7 @@ xtype [
 base:numeric,
 domain : [-100000 to 100000]].
 xtype [
- name: proline, 
+ name: alcohol, 
 base:numeric,
 domain : [-100000 to 100000]].
 
@@ -30,19 +30,19 @@ xattr [ name: flavanoids,
  type:flavanoids,
  class:simple,
  comm:out ].
-xattr [ name: proline,
- type:proline,
+xattr [ name: alcohol,
+ type:alcohol,
  class:simple,
  comm:out ].
 
 %%%%%%%%%%%%%%%%%%%%%%%% TABLE SCHEMAS DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%
  xschm tree : [color_intensity,flavanoids,proline]==> [class].
 xrule tree/0:
-[color_intensity  lt 3.424999952316284, flavanoids  lt 1.4900000095367432, proline eq any] ==> [class set 1]. # 1.0
+[color_intensity  lt 2.27, flavanoids  lt 0.99, alcohol eq any] ==> [class set 1]. # 1.0
 xrule tree/1:
-[color_intensity  gte 3.424999952316284, flavanoids  lt 1.4900000095367432, proline eq any] ==> [class set 2]. # 1.0
+[color_intensity  gte 2.27, flavanoids  lt 0.99, alcohol eq any] ==> [class set 2]. # 1.0
 xrule tree/2:
-[color_intensity eq any, flavanoids  gte 1.4900000095367432, proline  lt 655.0] ==> [class set 1]. # 1.0
+[color_intensity eq any, flavanoids  gte 0.99, alcohol  lt 12.87] ==> [class set 1]. # 1.0
 xrule tree/3:
-[color_intensity eq any, flavanoids  gte 1.4900000095367432, proline  gte 655.0] ==> [class set 0]. # 1.0
+[color_intensity eq any, flavanoids  gte 0.99, alcohol  gte 12.87] ==> [class set 0]. # 1.0
 

@@ -4,9 +4,20 @@ SHAP-guided explanations
 Adding SHAP to the explainer will make LUX try to build the explanation tree that is consistent with SHAP values.
 In some cases this is important feature, especially when the model is analysed not only with LUX, but also with SHAP.
 
-Yt also helps reducing so called Rashomon effect, because the LUX model uses the same features as blackbox model and therefore the explanations are suppose to be compliant with what really is happening in the balckbox model.
+It also helps reducing so called Rashomon effect, because the LUX model uses the same features as blackbox model and therefore the explanations are suppose to be compliant with what really is happening in the balckbox model.
+This is done via SHAP-guided sampling method that generates the samples in the direction of the decision boundary of a blackbox model, but also due to oblique splits that can handle the linear boundaries better.
+The example of the situation is visualized in the below figure, where you can observe how others' explainers decision boundary differ with respect to the balckbox decision boundary.
+LUX maintains the similar behaviour to the balckbox model, limiting the Rashomon effect.
 
-The full example with multiple datasets can be found here: `Notebook <https://github.com/sbobek/lux/blob/main/examples/lux_usage_example_shap.ipynb>`_
+.. image:: https://raw.githubusercontent.com/sbobek/lux/main/pix/decbound-degenerated.png
+    :alt: Decisions boundaries fro balckbox and other explainers
+
+Tutorials demonstrating the Rashomon effect:
+
+* The full example (shown below) with multiple datasets can be found here: `Notebook <https://github.com/sbobek/lux/blob/main/examples/lux_usage_example_shap.ipynb>`_
+* Another example of this phenomenon was given here: `XOR problem <https://github.com/sbobek/lux/blob/main/examples/lux_xor.ipynb>`_ where we demonstrate how the greedy nature of the decision tree algorithm can be overcome with SHAP-sampling, also limiting the Rashomon effect.
+
+
 
 Loading the dataset and  building explanations without SHAP support
 ------------
@@ -25,7 +36,7 @@ Below there is a code that loads the dataset and fits RandomForestClassifier to 
 
     wine = datasets.load_wine()
     features = wine['feature_names']
-    target = 'calss'
+    target = 'class'
     rs=42
     fraction=0.01
 
