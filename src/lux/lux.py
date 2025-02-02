@@ -221,9 +221,9 @@ class LUX(BaseEstimator):
         :type X: array-like or sparse matrix of shape (n_samples, n_features)
         :param y:
             Target values.
-        :param :
+        :param bounding_box_points:
             Points defining the bounding box.
-        :type : array-like of shape (n_points, n_dimensions)
+        :type bounding_box_points: array-like of shape (n_points, n_dimensions)
         :param X_importances:
             Importance matrix for features. Default is None.
         :param exclude_neighbourhood:
@@ -262,7 +262,7 @@ class LUX(BaseEstimator):
         Raises:
         :raises ValueError:
             If the length of class_names does not match the number of classes in y,
-                           or if  is not 2D.
+                           or if bounding_box_points is not 2D.
         """
         if class_names is None:
             class_names = np.unique(y)
@@ -329,7 +329,7 @@ class LUX(BaseEstimator):
                                       n_jobs=n_jobs)
         return self
 
-    def create_sample_bb(self, X, y, bounding_box_points, X_importances=None, exclude_neighbourhood=False,
+    def create_sample_bb(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                          representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
                          oversampling=False, categorical=None, n_jobs=None):
@@ -343,7 +343,7 @@ class LUX(BaseEstimator):
            Target values.
         :param bounding_box_points:
            Points defining the bounding box.
-        :type : array-like of shape (n_points, n_dimensions)
+        :type bounding_box_points: array-like of shape (n_points, n_dimensions)
         :param X_importances:
            Importance matrix for features. Default is None.
         :param exclude_neighbourhood:
@@ -379,11 +379,12 @@ class LUX(BaseEstimator):
            Sampled importance matrix for features.
         :rtype: pd.DataFrame or None
         """
+        neighbourhoods = []
+        importances = []
+
         if X_importances is not None:
             if not isinstance(X_importances, pd.DataFrame):
                 raise ValueError('Feature importance matrix has to be DataFrame.')
-
-        neighbourhoods, importances = [], []
 
         if categorical is None or sum(categorical) == 0:
             metric = 'minkowski'
@@ -393,42 +394,39 @@ class LUX(BaseEstimator):
         # TODO: if classifier is present, then use it to obtain SHAP, thenm
 
         if use_parity:
-            for instance_to_explain in bounding_box_points:
+            for instance_to_explain in boundiong_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
-                instance_class = np.argmax(self.predict_proba(self.process_input(nn_instance_to_explain)))
-                class_names_instance_last = [c for c in class_names if c != instance_class] + [instance_class]
-
-                neighbourhoods_bbox, importances_bbox = [], []
+                instance_class = np.argmax(
+                    self.predict_proba(self.process_input(np.array(instance_to_explain).reshape(1, -1))))
+                class_names_instance_last = [c for c in class_names if c not in [instance_class]] + [instance_class]
+                neighbourhoods_bbox = []
+                importances_bbox = []
                 for c in class_names_instance_last:
                     X_c_only = X[y == c]
-
                     if self.neighborhood_size <= 1.0:
                         n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                        nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(bounding_box_points))),
+                        nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))),
                                               n_jobs=n_jobs)
                     else:
-                        min_occurances_labels = list(np.array(y)).count(c)
-                        if self.neighborhood_size > min_occurances_labels:
-                            n_neighbors = min_occurances_labels
+                        min_occurances_lables = list(np.array(y)).count(c)
+                        if self.neighborhood_size > min_occurances_lables:
+                            n_neighbors = min_occurances_lables
                             warnings.warn(
-                                "WARNING: neighbourhood size selected is smaller than the number of instances within a class.")
+                                "WARNING: neighbourhood size select is smaller than number of instances within a class.")
+                            nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=n_jobs)
                         else:
-                            n_neighbors = self.neighborhood_size
-                        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=n_jobs)
+                            nn = NearestNeighbors(n_neighbors=self.neighborhood_size, n_jobs=n_jobs)
 
                     if inverse_sampling and c == instance_class:
-                        neighbourhoods_bbox_inv, importances_bbox_inv = self.__inverse_sampling(
-                            X, y,
-                            instance_to_explain=instance_to_explain,
-                            sampling_class_label=instance_class,
-                            opposite_neighbourhood=neighbourhoods_bbox,
-                            X_importances=X_importances,
-                            representative=representative,
-                            categorical=categorical,
-                            metric=metric,
-                            nn=nn,
-                            n_jobs=n_jobs
-                        )
+                        neighbourhoods_bbox_inv, importances_bbox_inv = self.__inverse_sampling(X, y,
+                                                                                                instance_to_explain=instance_to_explain,
+                                                                                                sampling_class_label=instance_class,
+                                                                                                opposite_neighbourhood=neighbourhoods_bbox,
+                                                                                                X_importances=X_importances,
+                                                                                                representative=representative,
+                                                                                                categorical=categorical,
+                                                                                                metric=metric,
+                                                                                                nn=nn, n_jobs=n_jobs)
                         neighbourhoods_bbox += neighbourhoods_bbox_inv
                         if X_importances is not None:
                             importances_bbox += importances_bbox_inv
@@ -436,12 +434,18 @@ class LUX(BaseEstimator):
                     if metric == 'precomputed':
                         signature = inspect.signature(gower.gower_topn)
                         has_njobs = 'n_jobs' in signature.parameters
-                        ids_c = gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
-                                                 n=nn.n_neighbors, n_jobs=n_jobs if has_njobs else None)['index']
+                        if has_njobs:
+                            ids_c = \
+                                gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                                 n=nn.n_neighbors,
+                                                 n_jobs=n_jobs)['index']
+                        else:
+                            ids_c = \
+                                gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                                 n=nn.n_neighbors)['index']
                     else:
                         nn.fit(X_c_only.values)
                         _, ids_c = nn.kneighbors(nn_instance_to_explain)
-
                     neighbourhoods_bbox.append(X_c_only.iloc[ids_c.ravel()])
                     if X_importances is not None:
                         X_c_only_importances = X_importances.loc[(y == c)]
@@ -452,20 +456,27 @@ class LUX(BaseEstimator):
                 if X_importances is not None:
                     importances += importances_bbox
 
-            X_train_sample = pd.concat(neighbourhoods).drop_duplicates()
-            if X_importances is not None:
-                X_train_sample_importances = pd.concat(importances).drop_duplicates()
+            X_train_sample = pd.concat(neighbourhoods)
+            X_train_sample = X_train_sample[~X_train_sample.index.duplicated(keep='first')]
 
+            if X_importances is not None:
+                X_train_sample_importances = pd.concat(importances)
+                X_train_sample_importances = X_train_sample_importances[
+                    ~X_train_sample_importances.index.duplicated(keep='first')]
+
+            #########################################
             if parity_strategy == 'local':
                 X_train_sample_c = X_train_sample.copy()
-                attributes = list(X_train_sample)
+                attributes = [a for a in X_train_sample]
                 X_train_sample_c['target'] = np.argmax(self.predict_proba(self.process_input(X_train_sample_c)), axis=1)
                 representations = X_train_sample_c.groupby('target').agg(np.median)
                 representations['target'] = np.argmax(
-                    self.predict_proba(self.process_input(representations[attributes])), axis=1)
-                prototypes = representations[representations['target'] !=
-                                             np.argmax(self.predict_proba(self.process_input(nn_instance_to_explain)),
-                                                       axis=1)[0]][attributes]
+                    self.predict_proba(self.process_input(representations[attributes])))
+                prototypes = representations[
+                    representations['target'] !=
+                    np.argmax(self.predict_proba(self.process_input(nn_instance_to_explain)), axis=1)[0]][
+                    attributes]
+                # find distances from instance to representatives
                 prototypes['distances'] = sklearn.metrics.pairwise_distances(prototypes[attributes],
                                                                              Y=nn_instance_to_explain)
                 target_radius = prototypes.reset_index().iloc[prototypes['distances'].argmin()]['target']
@@ -474,35 +485,38 @@ class LUX(BaseEstimator):
                                                                                    Y=nn_instance_to_explain)
                 t = X_train_sample_c[X_train_sample_c['target'] == target_radius].max()
                 X_train_sample = X_train_sample_c[X_train_sample_c['distances'] <= t[0]][X_train_sample.columns]
-
                 if X_importances is not None:
-                    X_train_sample_importances = X_train_sample_importances[X_train_sample_c['distances'] <= t[0]]
+                    X_train_sample_importances = X_train_sample_importances[
+                        (X_train_sample_c['distances'] <= t[0]).values]
+                    #########################################
         else:
             if inverse_sampling:
                 warnings.warn("WARNING: inverse sampling with use_parity set to False has no effect.")
-
             X_c_only = X
             if self.neighborhood_size <= 1.0:
                 n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(bounding_box_points))), n_jobs=n_jobs,
+                nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))), n_jobs=n_jobs,
                                       metric=metric)
             else:
                 nn = NearestNeighbors(n_neighbors=self.neighborhood_size, n_jobs=n_jobs, metric=metric)
 
             if metric != 'precomputed':
                 nn.fit(X_c_only.values)
-
-            for instance_to_explain in bounding_box_points:
+            for instance_to_explain in boundiong_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 if metric == 'precomputed':
                     signature = inspect.signature(gower.gower_topn)
                     has_njobs = 'n_jobs' in signature.parameters
-                    ids_c = \
-                    gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
-                                     n_jobs=n_jobs if has_njobs else None)['index']
+                    if has_njobs:
+                        ids_c = \
+                        gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical, n=nn.n_neighbors,
+                                         n_jobs=n_jobs)['index']
+                    else:
+                        ids_c = \
+                            gower.gower_topn(nn_instance_to_explain, X_c_only, cat_features=categorical,
+                                             n=nn.n_neighbors)['index']
                 else:
                     _, ids_c = nn.kneighbors(nn_instance_to_explain)
-
                 neighbourhoods.append(X_c_only.iloc[ids_c.ravel()])
                 if X_importances is not None:
                     neighbourhood_importances = X_importances.iloc[ids_c.ravel()]
@@ -513,112 +527,118 @@ class LUX(BaseEstimator):
 
         if density_sampling:
             X_copy = X.copy()
+            # X_copy_full = X.copy()
+            # for class_in_consideration in np.unique(y):
+            #    X_copy = X_copy_full[y==class_in_consideration]
 
             clu = OPTICS(min_samples=self.min_samples, metric=metric, n_jobs=n_jobs)
             if metric == 'precomputed':
                 signature = inspect.signature(gower.gower_topn)
                 has_njobs = 'n_jobs' in signature.parameters
-                optics_input = gower.gower_matrix(
-                    X_copy.iloc[:, ], cat_features=categorical, n_jobs=n_jobs if has_njobs else None
-                )
+                if has_njobs:
+                    optics_input = gower.gower_matrix(X_copy.iloc[:, ], cat_features=categorical, n_jobs=n_jobs)
+                else:
+                    optics_input = gower.gower_matrix(X_copy.iloc[:, ], cat_features=categorical)
                 labels = clu.fit_predict(optics_input)
             else:
                 labels = clu.fit_predict(X_copy)
-
             X_copy['label'] = labels
-            X_train_sample['label'] = X_copy['label']
 
-            labels_to_add = X_copy.loc[X_copy.index.isin(X_train_sample.index), 'label'].unique()
+            X_train_sample['label'] = X_copy['label']
+            # remove noise?
+            # X_train_sample=X_train_sample[X_train_sample['label']!=-1] #REOVIN NOISE
+            labels_to_add = X_copy[X_copy.index.isin(X_train_sample.index)]['label'].unique()
             labels_to_add = labels_to_add[labels_to_add != -1]
 
             total = pd.concat((X_train_sample, X.loc[X_copy[X_copy['label'].isin(labels_to_add)].index]))
-            X_train_sample = total.loc[~total.index.duplicated(keep='first')].drop(columns=['label'])
-
+            X_train_sample = total[~total.index.duplicated(keep='first')].drop(columns=['label'])
             if X_importances is not None:
                 X_importances_copy = X_importances.copy()
                 X_importances_copy['label'] = X_copy['label'].values
                 total_importances = pd.concat(
-                    (
-                    X_train_sample_importances, X_importances_copy.loc[X_importances_copy['label'].isin(labels_to_add)])
-                )
-                X_train_sample_importances = total_importances.loc[
-                    ~total_importances.index.duplicated(keep='first')].drop(columns=['label'])
+                    (X_train_sample_importances, X_importances_copy[X_importances_copy['label'].isin(labels_to_add)]))
+                X_train_sample_importances = total[~total.index.duplicated(keep='first')].drop(columns=['label'])
 
         if radius_sampling:
-            instance_to_explain = bounding_box_points[0]
+            instance_to_explain = boundiong_box_points[
+                0]  # Todo in case of BBozes, rasius should be calculated for all of them
             X_train_sample = X.loc[X_train_sample.index]
-
             if radius is None:
                 if metric == 'precomputed':
                     signature = inspect.signature(gower.gower_topn)
                     has_njobs = 'n_jobs' in signature.parameters
-                    distances = gower.gower_matrix(
-                        np.array(instance_to_explain).reshape(1, -1),
-                        X_train_sample.iloc[:, ], cat_features=categorical, n_jobs=n_jobs if has_njobs else None
-                    )
+                    if has_njobs:
+                        distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                       X_train_sample.iloc[:, ], cat_features=categorical,
+                                                       n_jobs=n_jobs)
+                    else:
+                        distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                       X_train_sample.iloc[:, ], cat_features=categorical)
                 else:
                     distances = sklearn.metrics.pairwise_distances(X_train_sample, instance_to_explain.reshape(1, -1))
                 radius = max(distances)
 
             if metric == 'precomputed':
-                distances = gower.gower_matrix(
-                    np.array(instance_to_explain).reshape(1, -1),
-                    X_train_sample.iloc[:, ], cat_features=categorical, n_jobs=n_jobs if has_njobs else None
-                )
+                signature = inspect.signature(gower.gower_topn)
+                has_njobs = 'n_jobs' in signature.parameters
+                if has_njobs:
+                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                   X_train_sample.iloc[:, ],
+                                                   cat_features=categorical, n_jobs=n_jobs)
+                else:
+                    distances = gower.gower_matrix(np.array(instance_to_explain).reshape(1, -1),
+                                                   X_train_sample.iloc[:, ],
+                                                   cat_features=categorical)
             else:
                 distances = sklearn.metrics.pairwise_distances(X, instance_to_explain.reshape(1, -1))
-
             idxs, _ = np.where(distances <= radius)
             X_train_sample = X.iloc[idxs]
-
             if X_importances is not None:
                 X_train_sample_importances = X_importances.iloc[idxs]
 
         if exclude_neighbourhood:
             X_train_sample = X.loc[~X_train_sample.index]
-
             if X_importances is not None:
                 X_train_sample_importances = X_importances.loc[~X_train_sample_importances.index]
 
+        # in case of dim reduciton, here is where we need to go back to original feature-space
+        # the return should be made based on the indices from the X_train_sample
         if oversampling:
             if X_importances is not None:
                 warnings.warn("WARNING: X_importances have no effect when oversampling is True.")
                 X_importances = None
-
-            instance_to_explain = bounding_box_points[0]
-
             if self.oversampling_strategy == self.OS_STRATEGY_SMOTE:
-                X_train_sample = self.__oversample_smote(
-                    X_train_sample, categorical=categorical, instance_to_explain=instance_to_explain
-                )
+                instance_to_explain = boundiong_box_points[
+                    0]  # Todo in case of BBozes, rasius should be calculated for all of them
+                X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
+                                                         instance_to_explain=instance_to_explain)
             elif self.oversampling_strategy == self.OS_STRATEGY_IMPORTANCE:
-                isam = ImportanceSampler(
-                    classifier=self.classifier, predict_proba=self.predict_proba,
-                    indstance_to_explain=instance_to_explain, min_generate_samples=self.min_generate_samples,
-                    process_input=self.process_input, categorical=self.categorical
-                )
+                instance_to_explain = boundiong_box_points[0]
+                isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
+                                         indstance_to_explain=instance_to_explain,
+                                         min_generate_samples=self.min_generate_samples,process_input=self.process_input,
+                                         categorical=self.categorical)
                 X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
-                X_train_sample = self.__oversample_smote(
-                    X_train_sample, categorical=categorical, instance_to_explain=instance_to_explain
-                )
-                isam = ImportanceSampler(
-                    classifier=self.classifier, predict_proba=self.predict_proba,
-                    instance_to_explain=instance_to_explain, min_generate_samples=self.min_generate_samples,
-                    process_input=self.process_input, categorical=self.categorical
-                )
+                instance_to_explain = boundiong_box_points[0]
+                X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
+                                                         instance_to_explain=instance_to_explain)
+                isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
+                                         indstance_to_explain=instance_to_explain,
+                                         min_generate_samples=self.min_generate_samples,process_input=self.process_input,
+                                         categorical=self.categorical)
                 X_train_sample = isam.fit_transform(X_train_sample)
 
             cols = X_train_sample.columns
             preds = np.argmax(self.predict_proba(self.process_input(X_train_sample)), axis=1)
             cl = np.argmax(self.predict_proba(self.process_input(instance_to_explain.reshape(1, -1))))
             mask = preds == cl
-
+            # if class of interest is smaller than other classes, balance it by sampling the instance multiple times
             diff = len(preds) / len(np.unique(preds)) - sum(mask)
+            # if dataset has more instances of opposite class, fill with instance2explain
             if diff > 0:
                 X_train_sample_arr = np.concatenate(
-                    (X_train_sample, np.ones((int(diff), X_train_sample.shape[1])) * instance_to_explain)
-                )
+                    (X_train_sample, np.ones((int(diff), X_train_sample.shape[1])) * instance_to_explain))
                 X_train_sample = pd.DataFrame(X_train_sample_arr, columns=cols)
 
         if X_importances is not None:
@@ -952,29 +972,22 @@ class LUX(BaseEstimator):
             categorical = [False] * X.shape[1]
 
         uarff = "@relation lux\n\n"
-        for col, dtype in zip(X.columns, X.dtypes):
-            if ptypes.is_integer_dtype(dtype) or ptypes.is_float_dtype(dtype):
-                uarff += f'@attribute {col} @REAL\n'
-            elif ptypes.is_categorical_dtype(X[col]):
-                domain = ','.join(map(str, X[col].cat.categories))
-                uarff += f'@attribute {col} {{{domain}}}\n'
+        for i, (f, t) in enumerate(zip(X.columns, X.dtypes)):
+            if ptypes.is_integer_dtype(t) or ptypes.is_float_dtype(t) and not categorical[i]:
+                uarff += f'@attribute {f} @REAL\n'
+            elif categorical[i]:
+                domain = ','.join(map(str, list(X[f].unique())))
+                uarff += '@attribute ' + f + ' {' + domain + '}\n'
 
         domain = ','.join([str(cn) for cn in class_names])
-        uarff += f'@attribute class {{{domain}}}\n'
+        uarff += '@attribute class {' + domain + '}\n'
 
         uarff += '@data\n'
-        if X_importances is None:
-            for sample_features, sample_labels in zip(X.to_numpy(), y):
-                for feature in sample_features:
-                    uarff += f'{feature}[1],'
-                uarff += ';'.join(
-                    [f'{class_name}[{label}]' for class_name, label in zip(class_names, sample_labels)]) + '\n'
-        else:
-            for sample_features, feature_importances, sample_labels in zip(X.to_numpy(), X_importances.to_numpy(),
-                                                                           y):
-                for feature, importance in zip(sample_features, feature_importances):
-                    uarff += f'{feature}[{importance}],'
-                uarff += ';'.join(
-                    [f'{class_name}[{label}]' for class_name, label in zip(class_names, sample_labels)]) + '\n'
-
+        for i in range(0, X.shape[0]):
+            for j in range(0, X.shape[1]):
+                if X_importances is not None:
+                    uarff += f'{X.iloc[i, j]}[{X_importances.iloc[i, j]}],'
+                else:
+                    uarff += f'{X.iloc[i, j]}[1],'
+            uarff += ';'.join([f'{c}[{p}]' for c, p in zip(class_names, y[i, :])]) + '\n'
         return uarff
