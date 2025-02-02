@@ -10,7 +10,6 @@
   * Rule-based explanations (that are executable at the same time)
   * Oblique trees backbone, which allows to explain more reliable linear decision boundaries
   * Integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
-  * It outperforms state-ot-the-art explainers (see: [LUX paper](https://arxiv.org/abs/2310.14894) for details )
   
 ## About
 The workflow for LUX looks as follows:
@@ -27,8 +26,6 @@ The workflow for LUX looks as follows:
   ```
   ['IF x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
   ```
-  - It obtained highest scores for most of th epopular metrics on 57 bechmark datasets from OpenML repository in comparison to state of the art algorithms such as LORE, Anchor, EXPLAN. The higher the area in the plot, the better.
-  ![]( https://raw.githubusercontent.com/sbobek/lux/main/pix/spiderplot.svg)
 
 ## Installation
 
@@ -39,16 +36,14 @@ pip install lux-explainer
 If you want to use LUX with [JupyterLab](https://jupyter.org/) install it and run:
 
 ```
-pip install jupyterlab
+pip installta jupyterlab
 jupyter lab
 ```
 
 **Caution**: If you want to use LUX with categorical data, it is advised to use [multiprocessing gower distance](https://github.com/sbobek/gower/tree/add-multiprocessing) package (due to high computational complexity of the problem). 
 
 ## Usage
-**Note**: Your output may differ from the example below, depending on the instance to explain that is selected, as LUX is local explainer.
 
-  * For online working example (basic usage), see [Colab basic usage example](https://colab.research.google.com/drive/123h5BdTfOK7adhe8nvvd7UPtNPBIuTgL?usp=sharing)
   * For complete usage see [lux_usage_example.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example.ipynb)
   * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example_shap.ipynb)
 
