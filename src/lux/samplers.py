@@ -218,8 +218,6 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                     newx.append(last.copy())
 
             return np.array(newx)
-        import time
-        start = time.time()
         if fulldf.shape[0] > 0:
             upsamplesa = np.concatenate(
                 fulldf_all.iloc[[0]].apply(perturb, args=(int(len(X_train_sample)), alpha, gradsf, cols),
@@ -232,7 +230,6 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                           pd.DataFrame(upsamplesb, columns=X_train_sample.columns), X_train_sample))
         else:
             upsamples = fulldf
-        print(time.time() - start)
         return upsamples
 
 
