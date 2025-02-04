@@ -9,6 +9,7 @@ from lux.pyuid3.entropy_evaluator import UncertainEntropyEvaluator
 from lux.pyuid3.uid3 import UId3
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import OPTICS
+import re
 import shap
 import sklearn
 import gower_multiprocessing as gower
@@ -196,7 +197,7 @@ class LUX(BaseEstimator):
             if isinstance(instance_to_explain, (list)):
                 instance_to_explain = np.array([instance_to_explain])
             if len(instance_to_explain.shape) == 2:
-                return self.fit_bounding_boxes(X=X, y=y, boundiong_box_points=instance_to_explain,
+                return self.fit_bounding_boxes(X=X, y=y, bounding_box_points=instance_to_explain,
                                                X_importances=X_importances, exclude_neighbourhood=exclude_neighbourhood,
                                                use_parity=use_parity, inverse_sampling=inverse_sampling,
                                                class_names=class_names, parity_strategy=parity_strategy,
@@ -208,7 +209,7 @@ class LUX(BaseEstimator):
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
 
-    def fit_bounding_boxes(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
+    def fit_bounding_boxes(self, X, y, bounding_box_points, X_importances=None, exclude_neighbourhood=False,
                            use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                            discount_importance=False, uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1,
                            representative='centroid', density_sampling=False, radius_sampling=False, oversampling=False,
@@ -269,9 +270,9 @@ class LUX(BaseEstimator):
         if class_names is not None and len(class_names) != len(np.unique(y)):
             raise ValueError('Length of class_names not aligned with number of classes in y')
 
-        if isinstance(boundiong_box_points, (list)):
-            boundiong_box_points = np.array(boundiong_box_points)
-        if len(boundiong_box_points.shape) != 2:
+        if isinstance(bounding_box_points, (list)):
+            bounding_box_points = np.array(bounding_box_points)
+        if len(bounding_box_points.shape) != 2:
             raise ValueError('Bounding box should be 2D.')
 
         if X_importances is not None:
@@ -283,7 +284,7 @@ class LUX(BaseEstimator):
 
         X_train_sample, X_train_sample_importances = self.create_sample_bb(X, np.argmax(
             self.predict_proba(self.process_input(X)), axis=1),
-                                                                           boundiong_box_points,
+                                                                           bounding_box_points,
                                                                            X_importances=X_importances,
                                                                            exclude_neighbourhood=exclude_neighbourhood,
                                                                            use_parity=use_parity,
@@ -311,9 +312,9 @@ class LUX(BaseEstimator):
         for i in range(0, len(y_train_sample)):
             y_train_sample[i, hot[i]] = 1
 
-        uarff = LUX.generate_uarff(self.process_input(X_train_sample), y_train_sample, X_importances=X_train_sample_importances,
-                                   categorical=categorical, class_names=class_names)
-        self.data = Data.parse_uarff_from_string(uarff)
+        X_train_sample['class'] = pd.Series(hot, index=X_train_sample.index)
+
+        self.data = Data.parse_dataframe(X_train_sample, X_train_sample_importances)
 
         self.uid3 = UId3(max_depth=self.max_depth, node_size_limit=self.node_size_limit,
                          grow_confidence_threshold=self.grow_confidence_threshold,
@@ -329,7 +330,7 @@ class LUX(BaseEstimator):
                                       n_jobs=n_jobs)
         return self
 
-    def create_sample_bb(self, X, y, boundiong_box_points, X_importances=None, exclude_neighbourhood=False,
+    def create_sample_bb(self, X, y, bounding_box_points, X_importances=None, exclude_neighbourhood=False,
                          use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                          representative='centroid', density_sampling=False, radius_sampling=False, radius=None,
                          oversampling=False, categorical=None, n_jobs=None):
@@ -394,7 +395,7 @@ class LUX(BaseEstimator):
         # TODO: if classifier is present, then use it to obtain SHAP, thenm
 
         if use_parity:
-            for instance_to_explain in boundiong_box_points:
+            for instance_to_explain in bounding_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 instance_class = np.argmax(
                     self.predict_proba(self.process_input(np.array(instance_to_explain).reshape(1, -1))))
@@ -405,7 +406,7 @@ class LUX(BaseEstimator):
                     X_c_only = X[y == c]
                     if self.neighborhood_size <= 1.0:
                         n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                        nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))),
+                        nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(bounding_box_points))),
                                               n_jobs=n_jobs)
                     else:
                         min_occurances_lables = list(np.array(y)).count(c)
@@ -495,14 +496,14 @@ class LUX(BaseEstimator):
             X_c_only = X
             if self.neighborhood_size <= 1.0:
                 n_neighbors = min(len(X_c_only) - 1, max(1, int(self.neighborhood_size * len(X_c_only))))
-                nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(boundiong_box_points))), n_jobs=n_jobs,
+                nn = NearestNeighbors(n_neighbors=max(1, int(n_neighbors / len(bounding_box_points))), n_jobs=n_jobs,
                                       metric=metric)
             else:
                 nn = NearestNeighbors(n_neighbors=self.neighborhood_size, n_jobs=n_jobs, metric=metric)
 
             if metric != 'precomputed':
                 nn.fit(X_c_only.values)
-            for instance_to_explain in boundiong_box_points:
+            for instance_to_explain in bounding_box_points:
                 nn_instance_to_explain = np.array(instance_to_explain).reshape(1, -1)
                 if metric == 'precomputed':
                     signature = inspect.signature(gower.gower_topn)
@@ -560,7 +561,7 @@ class LUX(BaseEstimator):
                 X_train_sample_importances = total[~total.index.duplicated(keep='first')].drop(columns=['label'])
 
         if radius_sampling:
-            instance_to_explain = boundiong_box_points[
+            instance_to_explain = bounding_box_points[
                 0]  # Todo in case of BBozes, rasius should be calculated for all of them
             X_train_sample = X.loc[X_train_sample.index]
             if radius is None:
@@ -608,19 +609,19 @@ class LUX(BaseEstimator):
                 warnings.warn("WARNING: X_importances have no effect when oversampling is True.")
                 X_importances = None
             if self.oversampling_strategy == self.OS_STRATEGY_SMOTE:
-                instance_to_explain = boundiong_box_points[
+                instance_to_explain = bounding_box_points[
                     0]  # Todo in case of BBozes, rasius should be calculated for all of them
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
             elif self.oversampling_strategy == self.OS_STRATEGY_IMPORTANCE:
-                instance_to_explain = boundiong_box_points[0]
+                instance_to_explain = bounding_box_points[0]
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
                                          indstance_to_explain=instance_to_explain,
                                          min_generate_samples=self.min_generate_samples,process_input=self.process_input,
                                          categorical=self.categorical)
                 X_train_sample = isam.fit_transform(X_train_sample)
             elif self.oversampling_strategy == self.OS_STRATEGY_BOTH:
-                instance_to_explain = boundiong_box_points[0]
+                instance_to_explain = bounding_box_points[0]
                 X_train_sample = self.__oversample_smote(X_train_sample, categorical=categorical,
                                                          instance_to_explain=instance_to_explain)
                 isam = ImportanceSampler(classifier=self.classifier, predict_proba=self.predict_proba,
@@ -792,13 +793,7 @@ class LUX(BaseEstimator):
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
 
-        if y is None:
-            y = pd.Series(np.arange(X.shape[0]), name='target_unused',
-                          index=X.index)  # This is not used, but Data resered last
-
-        X = pd.concat((X, y), axis=1)
-        XData = Data.parse_dataframe(X, 'lux')
-        return [int(f.get_name()) for f in self.uid3.predict(XData.get_instances())]
+        return [int(f['name']) for f in self.uid3.predict(X)]
 
     def justify(self, X, to_dict=False, reduce=True):
         """Traverse down the path for given x.
@@ -814,15 +809,10 @@ class LUX(BaseEstimator):
         else:
             raise ValueError("Only 2D arrrays are allowed as an input")
 
-        y = pd.Series(np.arange(X.shape[0]), name='target_unused',
-                      index=X.index)  # This is not used, but Data resered last
-        X = pd.concat((X, y), axis=1)
-        XData = Data.parse_dataframe(X, 'lux')
-
         if to_dict:
-            return [self.uid3.tree.justification_tree(i).to_dict(reduce=reduce) for i in XData.get_instances()]
+            return [self.uid3.tree.justification_tree(i, self.attributes_names).to_dict(reduce=reduce) for i in X.to_numpy()]
         else:
-            return [self.uid3.tree.justification_tree(i).to_pseudocode(reduce=reduce) for i in XData.get_instances()]
+            return [self.uid3.tree.justification_tree(i, self.attributes_names).to_pseudocode(reduce=reduce) for i in X.to_numpy()]
 
     def __get_covered(self, rule, dataset, features, categorical=None):
         """ Returns covered instances from a given dataset and a rule
@@ -840,9 +830,17 @@ class LUX(BaseEstimator):
             return 0, 0
         for i, v in rule.items():
             op = ''  # if dict(zip(features, categorical))[i] == False else '=='
-            query.append(f'{i}{op}' + f'and {i}{op}'.join(v))
+            query.append(f'{i}{op}' + f' and {i}{op}'.join(v))
+        
+        pattern = r'\b[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*(?:\s[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*)*\b'
+        query = ' and '.join(query)
+        all_names = set(re.findall(pattern, query.replace("and", "")))
+        
+        for name in all_names:
+            new = '`' + name + '`'
+            query = query.replace(name, new)
 
-        covered = dataset.query(' and '.join(query))
+        covered = dataset.query(query)
         return covered
 
     def counterfactual(self, instance_to_explain, background, counterfactual_representative='medoid', reduce=True,
@@ -922,7 +920,7 @@ class LUX(BaseEstimator):
         else:
             return counterfactual_rules[:topn]
 
-    def visualize(self, data, target_column_name='class', instance2explain=None, counterfactual=None,
+    def visualize(self, data, target_column_name='class', fmt='.2f', instance2explain=None, counterfactual=None,
                   filename='tree.dot'):
         if counterfactual is not None:
             cfdf = pd.DataFrame(counterfactual['counterfactual']).T
@@ -935,8 +933,11 @@ class LUX(BaseEstimator):
                 self.predict_proba(self.process_input(i2edf.values.reshape(1, -1)))[0])
         else:
             i2edf = None
-        self.uid3.tree.save_dot(filename, fmt='.2f', visual=True, background_data=data, instance2explain=i2edf,
+        self.tree.save_dot(filename, fmt=fmt, visual=True, background_data=data, instance2explain=i2edf,
                                 counterfactual=cfdf)
+    
+    def to_dot(self, filename='tree.dot', fmt='.2f'):
+        self.tree.save_dot(filename, fmt)
 
     def to_HMR(self):
         """ Exports to HMR format that can be executed by the HeaRTDroid rule-engine
@@ -944,50 +945,3 @@ class LUX(BaseEstimator):
         :return:
         """
         return self.tree.to_HMR()
-
-    @staticmethod
-    def generate_uarff(X, y, class_names, X_importances=None, categorical=None):
-        """ Generates uncertain ARFF file
-
-            :param X:
-                DataFrame containing dataset for training
-            :param y:
-                target values returned by predict_proba function
-            :param class_names:
-                names for the classes to be used in uID3
-            :param X_importances:
-                confidence for each reading obtained. This matrix should be normalized to the range [0;1].
-            :param categorical:
-                array indicating which parameters should be treated as categorical
-            :return:
-                String representing the ARFF file
-
-        """
-        if X_importances is not None:
-            if not isinstance(X_importances, pd.DataFrame):
-                raise ValueError('Reading confidence matrix has to be DataFrame.')
-            if X.shape != X_importances.shape:
-                raise ValueError("Confidence for readings have to be exaclty the size of X.")
-        if categorical is None:
-            categorical = [False] * X.shape[1]
-
-        uarff = "@relation lux\n\n"
-        for i, (f, t) in enumerate(zip(X.columns, X.dtypes)):
-            if ptypes.is_integer_dtype(t) or ptypes.is_float_dtype(t) and not categorical[i]:
-                uarff += f'@attribute {f} @REAL\n'
-            elif categorical[i]:
-                domain = ','.join(map(str, list(X[f].unique())))
-                uarff += '@attribute ' + f + ' {' + domain + '}\n'
-
-        domain = ','.join([str(cn) for cn in class_names])
-        uarff += '@attribute class {' + domain + '}\n'
-
-        uarff += '@data\n'
-        for i in range(0, X.shape[0]):
-            for j in range(0, X.shape[1]):
-                if X_importances is not None:
-                    uarff += f'{X.iloc[i, j]}[{X_importances.iloc[i, j]}],'
-                else:
-                    uarff += f'{X.iloc[i, j]}[1],'
-            uarff += ';'.join([f'{c}[{p}]' for c, p in zip(class_names, y[i, :])]) + '\n'
-        return uarff

@@ -1,7 +1,28 @@
 [![PyPI](https://img.shields.io/pypi/v/lux-explainer)](https://pypi.org/project/lux-explainer/)  ![License](https://img.shields.io/github/license/sbobek/lux)
  ![PyPI - Downloads](https://img.shields.io/pypi/dm/lux-explainer) [![Documentation Status](https://readthedocs.org/projects/lux-explainer/badge/?version=latest)](https://tsproto.readthedocs.io/en/latest/?badge=latest)
    
-# LUX (Local Universal Rule-based Explainer)
+# LUX (Local Universal Rule-based Explainer) - Experimental Branch
+## Important information
+  This branch is experimental, changes made in this branch are directly connected with code restructuration and there is a possibility that changes might affect results of LUX method. Tests are in progress. They had only been conducted on one dataset and the results were same as from method in Main branch. However, that does not mean it will work on all datasets and further test are needed and are being prepared. If any bugs are found you can report them and they will be fixed as soon as possible.
+
+## Changes vs Main branch
+  * Removed UARFF support and switched to natively work with pandas DataFrames
+  * Simplified code of Tree used in explainer
+  * Changed classes used by explainer to python structured Dictionary
+  * Changed oversampling method from calculating gradient in each step to calcualting it once and moving in it's direction
+  * Fixed some minor issues and misspelled variables
+
+## Results vs Main branch
+  * Parsing dataframe is up to 10 times faster than Main (usually more like 5x)
+  * Fitting model using SHAP values, but without oversampling is up to 4 times faster
+  * Oversampling alone is up 30 times faster than Main
+
+## What is left to do in this branch?
+  * Further code cleanup
+  * Tests and bug fixes
+  * Correcting .ipynb files and getting them up to date with new codebase
+  * Searching for new bottlenecks and fixing them
+
 ## Main features
   <img align="right"  src="https://raw.githubusercontent.com/sbobek/lux/main/pix/lux-logo.png" width="200">
   
@@ -10,10 +31,11 @@
   * Rule-based explanations (that are executable at the same time)
   * Oblique trees backbone, which allows to explain more reliable linear decision boundaries
   * Integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
+  * It outperforms state-of-the-art explainers (see: [LUX paper](https://arxiv.org/abs/2310.14894) for details )
   
 ## About
 The workflow for LUX looks as follows:
-  - You train an arbitrary selected machine learning model on your train dataset. The only requirements is that the model is able to output probabilities.
+  - You train an arbitrary selected machine learning model on your train dataset. The only requirement is that the model is able to output probabilities.
   
   ![](https://raw.githubusercontent.com/sbobek/lux/main/pix/decbound-point.png)
   - Next, you generate neighbourhood of an instance you wish to explain and you feed this neighbourhood to your model. 
@@ -26,6 +48,8 @@ The workflow for LUX looks as follows:
   ```
   ['IF x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
   ```
+  - It obtained highest scores for most of the popular metrics on 57 bechmark datasets from OpenML repository in comparison to state of the art algorithms such as LORE, Anchor, EXPLAN. The higher the area in the plot, the better.
+  ![]( https://raw.githubusercontent.com/sbobek/lux/main/pix/spiderplot.svg)
 
 ## Installation
 
@@ -36,14 +60,16 @@ pip install lux-explainer
 If you want to use LUX with [JupyterLab](https://jupyter.org/) install it and run:
 
 ```
-pip installta jupyterlab
+pip install jupyterlab
 jupyter lab
 ```
 
 **Caution**: If you want to use LUX with categorical data, it is advised to use [multiprocessing gower distance](https://github.com/sbobek/gower/tree/add-multiprocessing) package (due to high computational complexity of the problem). 
 
 ## Usage
+**Note**: Your output may differ from the example below, depending on the instance to explain that is selected, as LUX is local explainer.
 
+  * For online working example (basic usage), see [Colab basic usage example](https://colab.research.google.com/drive/123h5BdTfOK7adhe8nvvd7UPtNPBIuTgL?usp=sharing)
   * For complete usage see [lux_usage_example.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example.ipynb)
   * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example_shap.ipynb)
 
