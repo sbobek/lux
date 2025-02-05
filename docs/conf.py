@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('../src/'))
 # -- Project information -----------------------------------------------------
 
 project = 'lux-explainer'
-copyright = '2024, Szymon Bobek'
+copyright = '2025, Szymon Bobek'
 author = 'Szymon Bobek'
 
 

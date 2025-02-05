@@ -47,6 +47,15 @@ Advanced
 The more advanced, but also the easiest way to obtain visualizations is by calling `visualize` function of LUX.
 Additionally passing instance2explain and counterfactual parameters will allow to mark their decision path on the tree with red and blue dots.
 
+The nodes in the visualization represent the class distribution histogram with respect to the values of the feature that is the split variable (node variable).
+The distribution if calculated using background data, which in most of the cases can be a test set, or the runtime data.
+This allows to gen broader insight into where exactly the decision boundary is located in the context of feature values distribution.
+
+The red vertical line in a histogram visualizes the condition boundary, i.e. the values to the left of it go to the left node (less than) and the values to the right, goers to the right node (grater than).
+The conditions are additionally given ohn the edges of the tree.
+
+The final level of a tree (the leaves) shows the class distribution for a given background data when the instances pass the path from the root to the given leaf.
+
 .. code-block:: python
 
     lux.visualize(data=train,target_column_name='class',instance2explain=i2e,counterfactual=cf,filename='tree-wine.dot' )
