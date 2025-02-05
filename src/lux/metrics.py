@@ -175,4 +175,3 @@ def average_jackart(rule_1, rule_2, dataset, features, categorical_indicator):
         return 0
     else:
         return total_jackart / div
-

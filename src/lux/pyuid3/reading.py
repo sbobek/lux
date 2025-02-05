@@ -36,7 +36,7 @@ class Reading:
         result = ''
         for value in self.values:
             result += value.get_name() + '[' + str(value.get_confidence()) + '];'
-        result = result[:-1]  # delete the last semicolon ';'
+        result = result[:-1]
         return result
 
     @staticmethod

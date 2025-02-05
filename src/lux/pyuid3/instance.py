@@ -5,7 +5,6 @@ __all__ = ['Instance']
 # Cell
 from typing import List,Dict
 
-# from pyuid3.attribute import Attribute   # may cause problems
 from .reading import Reading
 
 # Cell
@@ -27,11 +26,3 @@ class Instance:
 
     def add_reading(self, reading: Reading): 
         self.readings[reading.get_base_att().get_name()] = reading
-
-    def to_arff(self) -> str:
-        result = ''
-        for reading in self.readings.values():
-            result += str(reading) + ','
-        result = result[:-1]  # delete the last coma ','
-        result += '\n'
-        return result

@@ -44,27 +44,19 @@ class Attribute:
     def __get_value_to_split_on(self) -> str:
         return self.value_to_split_on
 
-    def to_arff(self) -> str:
-        result = '@attribute ' + self.name + ' {'
-        for name in self.domain:
-            result += name + ','
-        result = result[:-1]  # delete the last coma ','
-        result += '}'
-        return result
-
     def __str__(self) -> str:
-        return self.get_name()
+        return self.name
 
     def __eq__(self, obj: ('Attribute', str)) -> bool:
         name = ''
         if isinstance(obj, Attribute):
-            name = obj.get_name()
+            name = obj.name
         elif isinstance(obj, str):
             name = obj
-        return self.get_name() == name
+        return self.name == name
 
     def __hash__(self) -> int:
-        return hash(self.get_name())
+        return hash(self.name)
 
     def set_value_to_split_on(self, value: str):
         self.value_to_split_on = value
