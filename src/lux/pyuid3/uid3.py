@@ -334,8 +334,10 @@ class UId3(BaseEstimator):
         datadf = data.to_dataframe()
         if datadf[data.get_class_attribute()['name']].nunique() < 2:
             return 0, 0, None, None, None
-        
-        svc_features = [svc_f['name'] for svc_f in svc_features]
+
+        if isinstance(svc_features[0], dict):
+            svc_features = [svc_f['name'] for svc_f in svc_features]
+            
         sc = StandardScaler()
         sc.fit(datadf[svc_features])
         datadf.loc[:,svc_features] = sc.transform(datadf.loc[:,svc_features])

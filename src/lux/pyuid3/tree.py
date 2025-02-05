@@ -105,7 +105,6 @@ class Tree:
             if a['name'] == self.get_class_attribute()['name']:
                 break
             imps.append(str(a['info_gain']))
-            print(a, a['info_gain'], "============================")
 
         return ','.join(imps)
     
