@@ -102,7 +102,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         """
         # calculate shap values
         try:
-            explainer = shap.Explainer(self.classifier, X_train_sample)
+            explainer = shap.Explainer(self.classifier, X_train_sample,seed=42)
             if hasattr(explainer, "shap_values"):
                 shap_values = explainer.shap_values(X_train_sample, check_additivity=False)
             else:
@@ -113,7 +113,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             else:
                 expected_values = [np.mean(v) for v in shap_values]
         except:
-            explainer = shap.Explainer(self.predict_proba, X_train_sample)
+            explainer = shap.Explainer(self.predict_proba, X_train_sample,seed=42)
             shap_values = explainer(X_train_sample).values
             shap_values = [sv for sv in np.moveaxis(shap_values, 2, 0)]
             expected_values = [np.mean(v) for v in shap_values]

@@ -1,7 +1,16 @@
 Release notes
 =============
 
-1.3.2 (2024-09-11)
+2.0.0 (2025-06-13)
+-------------
+* Suspended support fro UARFF files
+* Significant improvement of the backbone decision tree generation mechanism by moving away from object-oriented structure and focusing purely on Python-optimized structures (dicts)
+* Parsing dataframe is up to 10 times faster  (usually more like 5x)
+* Fitting model using SHAP values, but without oversampling is up to 4 times faster
+* Oversampling alone is up 30 times faster
+* Fixes in dependencies related to upgraded numpy and shap packages.
+
+1.3.2 (2024-06-13)
 -------------
 * Fixes in dependencies
 * Fixes in numpy float representation of dataframes read from UARFF

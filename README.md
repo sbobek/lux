@@ -1,27 +1,7 @@
 [![PyPI](https://img.shields.io/pypi/v/lux-explainer)](https://pypi.org/project/lux-explainer/)  ![License](https://img.shields.io/github/license/sbobek/lux)
  ![PyPI - Downloads](https://img.shields.io/pypi/dm/lux-explainer) [![Documentation Status](https://readthedocs.org/projects/lux-explainer/badge/?version=latest)](https://tsproto.readthedocs.io/en/latest/?badge=latest)
    
-# LUX (Local Universal Rule-based Explainer) - Experimental Branch
-## Important information
-  This branch is experimental, changes made in this branch are directly connected with code restructuration and there is a possibility that changes might affect results of LUX method. Tests are in progress. They had only been conducted on one dataset and the results were same as from method in Main branch. However, that does not mean it will work on all datasets and further test are needed and are being prepared. If any bugs are found you can report them and they will be fixed as soon as possible.
-
-## Changes vs Main branch
-  * Removed UARFF support and switched to natively work with pandas DataFrames
-  * Simplified code of Tree used in explainer
-  * Changed classes used by explainer to python structured Dictionary
-  * Changed oversampling method from calculating gradient in each step to calcualting it once and moving in it's direction
-  * Fixed some minor issues and misspelled variables
-
-## Results vs Main branch
-  * Parsing dataframe is up to 10 times faster than Main (usually more like 5x)
-  * Fitting model using SHAP values, but without oversampling is up to 4 times faster
-  * Oversampling alone is up 30 times faster than Main
-
-## What is left to do in this branch?
-  * Further code cleanup
-  * Tests and bug fixes
-  * Correcting .ipynb files and getting them up to date with new codebase
-  * Searching for new bottlenecks and fixing them
+# LUX (Local Universal Rule-based Explainer)
 
 ## Main features
   <img align="right"  src="https://raw.githubusercontent.com/sbobek/lux/main/pix/lux-logo.png" width="200">

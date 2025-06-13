@@ -327,7 +327,7 @@ class Tree:
                 result.append(f"{operators_mapping['>=']}{gcd}")
         return result+[c for c in conditions if operators_mapping['eq'] in c]
     
-    def save_dot(self, filename: str, fmt=None,  visual=False, background_data:pd.DataFrame=None, 
+    def save_dot(self, filename: str, fmt=".2f",  visual=False, background_data:pd.DataFrame=None,
                 instance2explain=None, counterfactual=None) -> None:
         f = open(filename, "w")
         if visual:
@@ -413,7 +413,7 @@ class Tree:
 
             return self.fill_attributes(list(), root)
 
-    def to_dot(self, parent=None, fmt=None) -> str:
+    def to_dot(self, parent=None, fmt=".2f") -> str:
         if parent:
             result = ""
             label = parent.get_att() + "\n"
@@ -462,7 +462,7 @@ class Tree:
             value = value.replace(k,v)
         return value
 
-    def to_dot_visual(self, parent=None, background_data: pd.DataFrame=None, instance2explain=None, counterfactual=None, file_format='png', palette='Set2', fmt=None) -> str:
+    def to_dot_visual(self, parent=None, background_data: pd.DataFrame=None, instance2explain=None, counterfactual=None, file_format='png', palette='Set2', fmt=".2f") -> str:
         path = '.'
         features=[]
         target_column = background_data.columns[-1]

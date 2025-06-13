@@ -113,7 +113,7 @@ class UId3(BaseEstimator):
                     self.tree = tree
                 return tree
             try:                
-                explainer = shap.Explainer(classifier, datadf.iloc[:,:-1])
+                explainer = shap.Explainer(classifier, datadf.iloc[:,:-1],seed=42)
                 if hasattr(explainer, "shap_values"):
                     shap_values = explainer.shap_values(datadf.iloc[:,:-1],check_additivity=False)
                 else:
@@ -124,7 +124,7 @@ class UId3(BaseEstimator):
                 else:
                     expected_values=[np.mean(v) for v in shap_values]
             except TypeError:
-                explainer = shap.Explainer(classifier.predict_proba, datadf.iloc[:,:-1])
+                explainer = shap.Explainer(classifier.predict_proba, datadf.iloc[:,:-1],seed=42)
                 shap_values = explainer(datadf.iloc[:,:-1]).values
                 shap_values=[sv for sv in np.moveaxis(shap_values, 2,0)]
                 expected_values=[np.mean(v) for v in shap_values]
