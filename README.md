@@ -28,7 +28,7 @@ The workflow for LUX looks as follows:
   ```
   ['IF x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
   ```
-  - It obtained highest scores for most of the popular metrics on 57 bechmark datasets from OpenML repository in comparison to state of the art algorithms such as LORE, Anchor, EXPLAN. The higher the area in the plot, the better.
+  - It obtained the highest scores for most of the popular metrics on 57 benchmark datasets from OpenML repository in comparison to state of the art algorithms such as LORE, Anchor, EXPLAN. The higher the area in the plot, the better.
   ![]( https://raw.githubusercontent.com/sbobek/lux/main/pix/spiderplot.svg)
 
 ## Installation
