@@ -10,7 +10,7 @@
   * Rule-based explanations (that are executable at the same time)
   * Oblique trees backbone, which allows to explain more reliable linear decision boundaries
   * Integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
-  * It outperforms state-ot-the-art explainers (see: [LUX paper](https://arxiv.org/abs/2310.14894) for details )
+  * It outperforms state-ot-the-art explainers (see: [LUX Benchmark branch](https://github.com/sbobek/lux/tree/lux-benchmark) for reproducibel benchmarks and evaluation code)
   
 ## About
 The workflow for LUX looks as follows:
