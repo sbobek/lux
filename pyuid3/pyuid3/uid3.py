@@ -227,7 +227,7 @@ class UId3(BaseEstimator):
     
     PARALLEL_ENTRY_FACTOR = 1000
 
-    def __init__(self, max_depth=2, node_size_limit = 1, grow_confidence_threshold = 0, min_impurity_decrease=0):
+    def __init__(self, max_depth=2, node_size_limit = 1, grow_confidence_threshold = 0, min_impurity_decrease=0, min_shap_background=20):
         self.TREE_DEPTH_LIMIT= max_depth
         self.max_depth = max_depth
         self.node_size_limit=node_size_limit
@@ -236,6 +236,7 @@ class UId3(BaseEstimator):
         self.tree = None
         self.node_size_limit = node_size_limit
         self.min_impurity_decrease=min_impurity_decrease
+        self.min_shap_background=min_shap_background
         
     @staticmethod
     def generate_uarff(X,y,class_names,X_importances=None, categorical = None):
@@ -312,27 +313,23 @@ class UId3(BaseEstimator):
             a fitted decision tree
         """
         log=''
+
+        if len(data.get_instances()) < self.NODE_SIZE_LIMIT:
+            return None,log
+        if depth > self.TREE_DEPTH_LIMIT:
+            return None,log
+
+        
         if imp is not None:
             shap_values=[sv for sv in np.moveaxis(imp, 2,0)]
             expected_values=[np.mean(v) for v in shap_values]
-        elif classifier is not None and len(data.get_instances()) >= self.NODE_SIZE_LIMIT:
+        elif classifier is not None and len(data.get_instances()) >= self.NODE_SIZE_LIMIT and len(data.get_instances()) >= self.min_shap_background:
             datadf = data.to_dataframe()     
-            # try:
-            #     datadfx = datadf.iloc[:,:-1]
-            #     sm = UncertainSMOTEID3(predict_proba=classifier.predict_proba,sigma=1,sampling_strategy='all') 
-            #     datadfx, _ = sm.fit_resample(datadfx, np.argmax(classifier.predict_proba(datadfx),axis=1))
-            #     y_train_sample = classifier.predict_proba(datadfx)
-            #     #limit features here
-            #     uarff=UId3.generate_uarff(datadfx,y_train_sample, X_importances=None,categorical=None,class_names=[0,1])
-            #     data = Data.parse_uarff_from_string(uarff)
-            #     datadf = data.to_dataframe()
-            # except:
-            #     pass
             
             try:
                 bgmaxsize = datadf.shape[0]
                 bg = datadf.iloc[:,:-1].sample(min(bgmaxsize, 500))
-                explainer = shap.Explainer(classifier,bg)#datadf.iloc[:,:-1])
+                explainer = shap.Explainer(classifier,bg,seed=42)
                 if hasattr(explainer, "shap_values"):
                     shap_values = explainer.shap_values(datadf.iloc[:,:-1],check_additivity=False)
                 else:
@@ -343,7 +340,7 @@ class UId3(BaseEstimator):
                 else:
                     expected_values=[np.mean(v) for v in shap_values]
             except TypeError:
-                explainer = shap.Explainer(classifier.predict_proba, bg)#datadf.iloc[:,:-1])
+                explainer = shap.Explainer(classifier.predict_proba, bg,seed=42)#datadf.iloc[:,:-1])
                 shap_values = explainer(datadf.iloc[:,:-1]).values
                 shap_values=[sv for sv in np.moveaxis(shap_values, 2,0)]
                 expected_values=[np.mean(v) for v in shap_values]
@@ -367,12 +364,8 @@ class UId3(BaseEstimator):
                 
             data = data.set_importances(pd.concat(shap_dict,axis=1), expected_values = expected_dict)
         
-        if len(data.get_instances()) < self.NODE_SIZE_LIMIT:
-            return None,log
-        if depth > self.TREE_DEPTH_LIMIT:
-            return None,log
+
         entropy = entropyEvaluator.calculate_entropy(data)
-        
         data.update_attribute_domains()
 
         # of the set is heterogeneous or no attributes to split, just class -- return

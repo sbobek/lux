@@ -155,6 +155,8 @@ class LUX(BaseEstimator):
                 importances_bbox=[]
                 for c in class_names_instance_last: 
                     X_c_only = X[y==c]
+                    if X_c_only.shape[0] < 2:
+                        continue
                   #  print(f'Claculating nn for matrix {X_c_only.shape} instances')
                   #  print(X_c_only)
                     if self.neighborhood_size <= 1.0:
@@ -556,7 +558,7 @@ class LUX(BaseEstimator):
     def __getshap(self,X_train_sample):
         #calculate shap values
         try:
-            explainer = shap.Explainer(self.classifier,X_train_sample)
+            explainer = shap.Explainer(self.classifier,X_train_sample,seed=42)
             if hasattr(explainer, "shap_values"):
                 shap_values = explainer.shap_values(X_train_sample,check_additivity=False)
             else:
@@ -567,7 +569,7 @@ class LUX(BaseEstimator):
             else:
                 expected_values=[np.mean(v) for v in shap_values]
         except TypeError:
-            explainer = shap.Explainer(self.predict_proba, self.__process_input(X_train_sample))
+            explainer = shap.Explainer(self.predict_proba, self.__process_input(X_train_sample),seed=42)
             shap_values = explainer(X_train_sample).values
             shap_values=[sv for sv in np.moveaxis(shap_values, 2,0)]
             expected_values=[np.mean(v) for v in shap_values]
@@ -611,12 +613,7 @@ class LUX(BaseEstimator):
         fulldf_all.index=X_train_sample.index
         class_of_i2e=self.classifier.predict(instance_to_explain)
         predictions = self.classifier.predict(fulldf_all[cols])
-        fulldf=fulldf_all#[predictions!=class_of_i2e]
-        
-        # if len(fulldf) == 0:
-        #     fulldf = fulldf_all[predictions!=class_of_i2e]
-        # else:
-        #     print(f'Size of fulldf: {len(fulldf)}')
+        fulldf=fulldf_all
         
         gradsf = {}
         gradst = []
@@ -629,10 +626,6 @@ class LUX(BaseEstimator):
                 mask = indexer==cl
                 xs = X_train_sample.iloc[mask,dim]
                 ys = shapclass[mask,dim]
-                #plt.plot(xs,ys)
-                #plt.show()
-                #grads = np.gradient(ys,xs)
-                #gradstcl.append(grads)
                 svr =LinearRegression()#SVR()
                 svr.fit(xs.values.reshape(-1,1),ys)
                 
@@ -641,24 +634,16 @@ class LUX(BaseEstimator):
                 
                 gradcl.append(gradient)
             gradsf[cl] =gradcl
-            #gradst.append(gradstcl)
 
-        #print(f'Graadsf: {gradsf[0]} for {X_train_sample.shape[1]}')
-        # fulldf_all['class'] = predictions
-        # centroids = fulldf_all.groupby('class').mean().reset_index()
-        # voi = centroids[centroids['class']==class_of_i2e[0]]
-        # maxidx = np.max(abs(centroids[cols].values-voi[cols].values), axis=0)
         
         alphashap=abs(shapclass).mean() #FX
 
         #todo calcualte average distance to opposite class form isntance to explain and use it as alpha
-        meandist = np.max(sklearn.metrics.pairwise_distances(fulldf_all[cols][predictions!=class_of_i2e], Y=instance_to_explain))
-        
-        alpha = (np.max(np.abs((fulldf_all[cols][predictions!=class_of_i2e]- instance_to_explain)),axis=0)).values
-        
-      #  print(f'Alpha: {alpha} while meandist: {meandist}`')
-        
-        #alpha=np.ones(len(cols))*(abs(shapclass).mean())
+        foreign_territory = fulldf_all[cols][predictions!=class_of_i2e]
+        if foreign_territory.shape[0] == 0:
+            foreign_territory = fullds_all[cols]
+        meandist = np.max(sklearn.metrics.pairwise_distances(foreign_territory, Y=instance_to_explain))
+        alpha = (np.max(np.abs((foreign_territory- instance_to_explain)),axis=0)).values
         
         def perturb(x,num, alpha, gradients,cols, shapcols):
             #todo perturb only proximal values?
