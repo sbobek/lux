@@ -111,7 +111,7 @@ class LUX(BaseEstimator):
             parity_strategy='global', inverse_sampling=True, class_names=None, discount_importance=False,
             uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1, representative='centroid',
             density_sampling=False, radius_sampling=False, oversampling=True, categorical=None, prune=True,
-            oblique=True, n_jobs=None):
+            oblique=True, tree_with_shap = True, n_jobs=None):
         """ Fit the LUX explainer model.
 
         :param X:
@@ -173,6 +173,8 @@ class LUX(BaseEstimator):
         :param oblique: optional
             Whether to use oblique decision rules. Default is False.
         :type oblique: bool
+        :param tree_with_shap:
+            Whether to use build decision tre using shap guided splits. Default is True.
         :param n_jobs: optional
             The number of parallel jobs to run. Default is None.
         :type n_jobs: int or None
@@ -213,7 +215,7 @@ class LUX(BaseEstimator):
                            use_parity=True, parity_strategy='global', inverse_sampling=False, class_names=None,
                            discount_importance=False, uncertain_entropy_evaluator=UncertainEntropyEvaluator(), beta=1,
                            representative='centroid', density_sampling=False, radius_sampling=False, oversampling=False,
-                           categorical=None, prune=False, oblique=False, n_jobs=None):
+                           categorical=None, prune=False, oblique=False, tree_with_shap=True,  n_jobs=None):
         """ Fit LUX explainer model for the neighbourhood data defined by the bounding box constructed of several points.
         Usually only one point is provided.
 
@@ -257,6 +259,8 @@ class LUX(BaseEstimator):
             Whether to prune. Default is False.
         :param oblique:
             Whether to use oblique splits. Default is False.
+        :param tree_with_shap:
+            Whether to use build decision tre using shap guided splits. Default is True.
         :param n_jobs:
             Number of jobs to run in parallel. Default is None.
 
@@ -320,7 +324,7 @@ class LUX(BaseEstimator):
                          grow_confidence_threshold=self.grow_confidence_threshold,
                          min_impurity_decrease=self.min_impurity_decrease)
         self.uid3.PARALLEL_ENTRY_FACTOR = 100
-        if self.classifier is not None:
+        if self.classifier is not None and tree_with_shap:
             self.tree = self.uid3.fit(self.data, entropyEvaluator=uncertain_entropy_evaluator,
                                       classifier=self.classifier, depth=0, beta=beta, prune=prune, oblique=oblique,
                                       discount_importance=discount_importance, n_jobs=n_jobs)
