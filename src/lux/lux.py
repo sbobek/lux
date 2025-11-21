@@ -207,7 +207,7 @@ class LUX(BaseEstimator):
                                                uncertain_entropy_evaluator=uncertain_entropy_evaluator, beta=beta,
                                                representative=representative, density_sampling=density_sampling,
                                                oversampling=oversampling, categorical=categorical, prune=prune,
-                                               oblique=oblique, n_jobs=n_jobs)
+                                               oblique=oblique, tree_with_shap=tree_with_shap, n_jobs=n_jobs)
             else:
                 raise ValueError('Dimensions of point to explain not aligned with dataset')
 

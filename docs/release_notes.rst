@@ -10,10 +10,11 @@ Release notes
 * Oversampling alone is up 30 times faster
 * Fixes in dependencies related to upgraded numpy and shap packages.
 
-1.3.2 (2024-06-13)
+1.3.2 (2025-02-05)
 -------------
 * Fixes in dependencies
 * Fixes in numpy float representation of dataframes read from UARFF
+* Added more examples to documentation
 
 1.3.0 (2024-09-06)
 -------------
