@@ -3,15 +3,15 @@
 __all__ = ['Tree']
 
 # Cell
+from typing import List, Dict
 from .tree_node import TreeNode
-from .value import Value
 from .att_stats import AttStats
-from .instance import Instance
 from .attribute import Attribute
 from collections import defaultdict
 import re
 import pandas as pd
 import os
+import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -23,22 +23,24 @@ class Tree:
     def get_root(self) -> TreeNode:
         return self.root
 
-    def predict(self, i: Instance) -> AttStats:
+    def predict(self, i: np.array, i_labels: list) -> AttStats:
         test_node = self.get_root()
+        name_val_dict = {}
+        for key, val in zip(i_labels, i):
+            name_val_dict[key] = str(val)
         while not test_node.is_leaf():
             att_to_test = test_node.get_att()
-            r = i.get_reading_for_attribute(att_to_test)
-            most_probable = r.get_most_probable()
+            most_probable_name = name_val_dict[att_to_test]
 
             new_node = None
             for te in test_node.get_edges():
                 if test_node.get_type() == Attribute.TYPE_NOMINAL:
-                    if te.get_value().get_name() == most_probable.get_name():
+                    if te.get_value()['name'] == most_probable_name:
                         new_node = te.get_child()
                         break
                 elif test_node.get_type() == Attribute.TYPE_NUMERICAL:
-                    tev = te.get_value().compile_expr(i)#.get_name()                    
-                    if eval(f'{most_probable.get_name()}{tev}'):
+                    tev = self.compile_expr(name_val_dict, te.get_value())                   
+                    if eval(f"{most_probable_name}{tev}"):
                         new_node = te.get_child()
                         break
 
@@ -49,28 +51,36 @@ class Tree:
 
         return test_node.get_stats()
     
-    def justification_tree(self, i: Instance) -> str:
+    def compile_expr(self, name_val_dict, v):
+        expr = v['name']
+        for key in sorted(name_val_dict.keys(),key=len,reverse=True):
+            expr = expr.replace(key, name_val_dict[key])
+        return expr
+    
+    def justification_tree(self, i, i_labels) -> str:
         test_node = self.get_root()
         root_handle=test_node.copy()
         root_handle.set_edges([])
         temp_root = root_handle
+        name_val_dict = {}
+        for key, val in zip(i_labels, i):
+            name_val_dict[key] = str(val)
         while not test_node.is_leaf():
             att_to_test = test_node.get_att()
-            r = i.get_reading_for_attribute(att_to_test)
-            most_probable = r.get_most_probable()
+            most_probable_name = name_val_dict[att_to_test]
 
             new_node = None
             for te in test_node.get_edges():
                 if test_node.get_type() == Attribute.TYPE_NOMINAL:
-                    if eval(f'{te.get_value().get_name()} == {most_probable.get_name()}'):
+                    if te.get_value()['name'] == {most_probable_name}:
                         new_node = te.get_child()
                         te_copy = te.copy()
                         temp_root.set_edges([te_copy])
                         temp_root = te_copy.get_child()
                         break
                 elif test_node.get_type() == Attribute.TYPE_NUMERICAL:
-                    tev = te.get_value().compile_expr(i)#.get_name()                    
-                    if eval(f'{most_probable.get_name()}{tev}'):
+                    tev = self.compile_expr(name_val_dict, te.get_value())              
+                    if eval(f"{most_probable_name}{tev}"):
                         new_node = te.get_child()
                         te_copy = te.copy()
                         temp_root.set_edges([te_copy])
@@ -85,41 +95,37 @@ class Tree:
 
         return Tree(root=root_handle)
 
-    def error(self, i: Instance) -> bool:
-        result = self.predict(i)
-
-        return result.get_most_porbable().get_name() == i.get_readings().get_last().get_most_probable().get_name()
-
-    def get_attributes(self) -> set:
-        return self.fill_attributes(set(), self.root)
+    def get_attributes(self) -> list:
+        return self.fill_attributes(list(), self.root)
 
     def get_importances(self) -> str:
         imps = []
         atts = self.get_attributes()
         for a in atts:
-            if a.get_name() == self.get_class_attribute().get_name():
+            if a['name'] == self.get_class_attribute()['name']:
                 break
-            imps.append(str(a.get_importance_gain()))
-            print(a, a.get_importance_gain(), "============================")
+            imps.append(str(a['info_gain']))
 
         return ','.join(imps)
-
+    
     def to_HMR(self) -> str:
+        pattern = r'\b[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*(?:\s[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*)*\b'
+        
         result = "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%\n\n"
 
         #types are defined by atts domains
         atts = self.get_attributes()
         for att in atts:
-            result += f"xtype [\n name: {att.get_name()}, \n"
-            if att.get_type() == Attribute.TYPE_NOMINAL:
+            result += f"xtype [\n name: '{att['name']}', \n"
+            if att['type'] == Attribute.TYPE_NOMINAL:
                 result += f"base:symbolic,\n domain : ["
                 domain_res = ""
-                for v in att.get_domain():
+                for v in att['domain']:
                     domain_res += f"{v},"
 
                 result += domain_res.strip()[:-1].replace("[<>=]","")
 
-            elif att.get_type() == Attribute.TYPE_NUMERICAL:
+            elif att['type'] == Attribute.TYPE_NUMERICAL:
                 result += "base:numeric,\n" + "domain : ["
                 result += "-100000 to 100000"
 
@@ -127,47 +133,53 @@ class Tree:
 
         result += "\n%%%%%%%%%%%%%%%%%%%%%%%%% ATTRIBUTES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%\n"
         for att in atts:
-            result += f"xattr [ name: {att.get_name()},\n type:{att.get_name()},\n class:simple,\n comm:out ].\n"
+            result += f"xattr [ name: '{att['name']}',\n type:'{att['name']}',\n class:simple,\n comm:out ].\n"
 
         #tables and rules
         result +="\n%%%%%%%%%%%%%%%%%%%%%%%% TABLE SCHEMAS DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%\n"
 
         result += " xschm tree : ["
         for att in atts:
-            if not att == self.get_class_attribute():
-                result += f"{att.get_name()},"
+            if not att['name'] == self.get_class_attribute()['name']:
+                result += f"'{att['name']}',"
 
         result = f"{result.strip()[:-1]}]"
-        result += f"==> [{self.get_class_attribute().get_name()}].\n"
+        result += f"==> ['{self.get_class_attribute()['name']}'].\n"
 
         #rules
 
         rules = self.get_rules()
-        decision_att = self.get_class_attribute().get_name()
+        decision_att = self.get_class_attribute()['name']
         dec_att = self.get_class_attribute()
-        cond_atts = Attribute()
+        cond_atts = {'name': None, 'domain': None, 'type': None, 'value_to_split_on': '', 'info_gain': 0.0}
         cond_atts_list = list(atts)
-        cond_atts_list.remove(dec_att)
+        for elem in cond_atts_list:
+            if elem['name'] == dec_att['name']:
+                cond_atts_list.remove(elem)
 
         for i, rule in enumerate(rules):
             result += f"xrule tree/{i}:\n["
 
             #conditions
             for att in atts:
-                if att.get_name() == self.get_class_attribute().get_name():
+                if att['name'] == self.get_class_attribute()['name']:
                     continue
 
-                value = Value("any", 1.0)
+                value = {'name': 'any', 'confidence': 1.0, 'importances': {'Value': 1.0}}
 
                 found = False
                 for c in rule:
-                    if c.att_name == att.get_name():
+                    if c.att_name == att['name']:
                         found=True
                         value = c.value
-                        result +=  f"{att.get_name()} {value.get_name().replace('>=',' gte ').replace('<',' lt ')}, "
+                        v_name = value['name']
+                        all_names = set(re.findall(pattern, value['name']))
+                        for name in all_names:
+                            v_name = value['name'].replace(name, f"'{name}'")
+                        result +=  f"'{att['name']}' {v_name.replace('>=',' gte ').replace('<',' lt ')}, "
 
                 if not found:
-                    result += f"{att.get_name()} eq any, "
+                    result += f"'{att['name']}' eq any, "
 
             result = f"{result.strip()[:-1]}] ==> ["
 
@@ -175,17 +187,19 @@ class Tree:
 
             confidence = 1
             for c in rule:
-                confidence *= c.value.get_confidence()
+                confidence *= c.value['confidence']
 
             for c in rule:
                 if c.att_name == decision_att:
                     ex = '\\['
-                    result += f"{decision_att} set {c.value.get_name().split(ex)[0]}"
+                    result += f"'{decision_att}' set {c.value['name'].split(ex)[0]}"
 
             confidence = confidence * 10 / 10.0
             result += f"]. # {confidence}\n"
 
-
+        result += "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+        result += "% File generated by LUX \n"
+        result += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
         # result += "</table></xtt><callbacks/></hml>\n"
         return result
     
@@ -202,7 +216,7 @@ class Tree:
                                 }
             
 
-        decision_att = self.get_class_attribute().get_name()
+        decision_att = self.get_class_attribute()['name']
         list_result = self.to_dict(reduce=reduce, operators_mapping=operators_mapping)
         result = ""
         for rule in list_result:
@@ -217,7 +231,7 @@ class Tree:
 
         return result
 
-    def to_dict(self, reduce = True, operators_mapping=None) -> str:
+    def to_dict(self, reduce = True, operators_mapping=None) -> List[Dict]:
         result = []
         if operators_mapping is None:
             operators_mapping = {'if':'IF',
@@ -233,43 +247,45 @@ class Tree:
         #types are defined by atts domains
         atts = self.get_attributes()
         rules = self.get_rules()
-        decision_att = self.get_class_attribute().get_name()
+        decision_att = self.get_class_attribute()['name']
         dec_att = self.get_class_attribute()
-        cond_atts = Attribute()
+        #cond_atts = {'name': None, 'domain': None, 'type': None, 'value_to_split_on': '', 'info_gain': 0.0}
         cond_atts_list = list(atts)
-        cond_atts_list.remove(dec_att)
+        for elem in cond_atts_list:
+            if elem['name'] == dec_att['name']:
+                cond_atts_list.remove(elem)
 
-        for i, rule in enumerate(rules):
+        for rule in rules:
             conditions = []
             condition_values=[]
             #conditions
             for att in atts:
-                if att.get_name() == self.get_class_attribute().get_name():
+                if att['name'] == self.get_class_attribute()['name']:
                     continue
 
-                value = Value("any", 1.0)
+                value = {'name': 'any', 'confidence': 1.0, 'importances': {'Value': 1.0}}
 
                 for c in rule:
-                    if c.att_name == att.get_name():
+                    if c.att_name == att['name']:
                         value = c.value
-                        if att.get_type() == Attribute.TYPE_NOMINAL:
-                            condition_value = f"{operators_mapping['eq']} {value.get_name()}"
+                        if att['type'] == Attribute.TYPE_NOMINAL:
+                            condition_value = f"{operators_mapping['eq']} {value['name']}"
                         else:
-                            condition_value = value.get_name().replace('>=',f"{operators_mapping['>=']} ").replace('<',f"{operators_mapping['<']} ")
+                            condition_value = value['name'].replace('>=',f"{operators_mapping['>=']} ").replace('<',f"{operators_mapping['<']} ")
                         
                         condition_values.append(condition_value)
-                        conditions.append(f"{att.get_name()}".strip())
+                        conditions.append(f"{att['name']}".strip())
 
             #decision
 
             confidence = 1
             for c in rule:
-                confidence *= c.value.get_confidence()
+                confidence *= c.value['confidence']
 
             for c in rule:
                 if c.att_name == decision_att:
                     ex = '\\['
-                    prediction = c.value.get_name().split(ex)[0]
+                    prediction = c.value['name'].split(ex)[0]
 
             confidence = confidence * 10 / 10.0
 
@@ -311,13 +327,13 @@ class Tree:
                 result.append(f"{operators_mapping['>=']}{gcd}")
         return result+[c for c in conditions if operators_mapping['eq'] in c]
     
-    def save_dot(self, filename: str, fmt=None,  visual=False, background_data:pd.DataFrame=None, 
+    def save_dot(self, filename: str, fmt=".2f",  visual=False, background_data:pd.DataFrame=None,
                 instance2explain=None, counterfactual=None) -> None:
         f = open(filename, "w")
         if visual:
             if background_data is not None:
                 if instance2explain is not None and not isinstance(instance2explain, pd.DataFrame):
-                    counterfactual=pd.DataFrame(instance2explain)
+                    instance2explain=pd.DataFrame(instance2explain)
                 if counterfactual is not None and not isinstance(counterfactual, pd.DataFrame):
                     counterfactual=pd.DataFrame(counterfactual)
             f.write(self.to_dot_visual(parent=None, fmt=fmt, background_data=background_data,
@@ -326,14 +342,14 @@ class Tree:
             f.write(self.to_dot(parent=None,fmt=fmt))
         f.close()
 
-    def get_class_attribute(self) -> Attribute:
+    def get_class_attribute(self) -> Dict:
         temp  = self.root
         while not temp.is_leaf():
             temp = temp.get_edges()[0].get_child()
 
-        result = Attribute(temp.get_att(), set())
+        result = {'name': temp.get_att(), 'domain': set(), 'type': None, 'value_to_split_on': '', 'info_gain': 0.0}
         for v in temp.get_stats().get_statistics():
-            result.add_value(v.get_name())
+            result['domain'].add(v['name'])
 
         return result
 
@@ -358,53 +374,64 @@ class Tree:
     def get_rules(self) -> list:
         return self.fill_rules([], None, self.get_root())
 
-    def fill_attributes(self, result=None, root=None) -> set:
-         if result != None and root!= None:
+    def fill_attributes(self, result=None, root=None) -> list:
+         if result != None and root != None:
             att_name = root.get_att()
-            att = Attribute(att_name, set(), root.get_type())
-            att.set_importance_gain(root.get_infogain())
-            if att in result:
-                for tmp in result:
-                    if tmp == att:
-                        att = tmp
-                        break
+            att = {'name': att_name, 'domain': set(), 'type': root.get_type(), 'value_to_split_on': '', 'info_gain': 0.0}
+            att['info_gain'] = root.get_infogain()
+            for val in result:
+                if val['name'] == att['name']:
+                    for tmp in result:
+                        if tmp == att['name']:
+                            att = tmp
+                            break
+                    break
 
             if not root.is_leaf():
                 for  e in root.get_edges():
-                    att.add_value(e.get_value().get_name())
+                    att['domain'].add(e.get_value()['name'])
                     self.fill_attributes(result, e.get_child())
-
-                result.add(att)
+                should_add = True
+                for val in result:
+                    if val['name'] == att['name']:
+                        should_add = False
+                if should_add:
+                    result.append(att)
             else:
                 for v in root.get_stats().get_statistics():
-                    att.add_value(v.get_name())
+                    att['domain'].add(v['name'])
 
-                result.add(att)
+                should_add = True
+                for val in result:
+                    if val['name'] == att['name']:
+                        should_add = False
+                if should_add:
+                    result.append(att)
 
             return result
          else:
 
-            return self.fill_attributes(set(), root)
+            return self.fill_attributes(list(), root)
 
-    def to_dot(self, parent=None, fmt=None) -> str:
+    def to_dot(self, parent=None, fmt=".2f") -> str:
         if parent:
             result = ""
             label = parent.get_att() + "\n"
             if parent.is_leaf():
                 # Add classification info to leaves
                 for v in parent.get_stats().get_statistics():
-                    label += str(v) + "\n"
+                    label += f"{v['name']}[{v['confidence']:{fmt}}]" + "\n"
 
             col = "red" if parent.is_leaf() else "black"
             result += f"{hash(parent)}[label=\" {label} \",shape=box, color={col}]"
 
             for te in parent.get_edges():
                 if parent.get_type() == Attribute.TYPE_NUMERICAL and fmt is not None:
-                    value = te.get_value().get_name()
+                    value = te.get_value()['name']
                     value=self.__format_expression(value,fmt)
                 else:
-                    value = value=te.get_value().get_name()
-                result += f"{hash(parent)}->{hash(te.get_child())}[label=\"{value}\n conf={round(te.get_value().get_confidence() * 100.0) / 100.0} \"]\n"
+                    value = value=te.get_value()['name']
+                result += f"{hash(parent)}->{hash(te.get_child())}[label=\"{value}\n conf={round(te.get_value()['confidence'] * 100.0) / 100.0} \"]\n"
                 result += self.to_dot(te.get_child(),fmt=fmt)
 
             return result
@@ -427,7 +454,7 @@ class Tree:
     
     def __format_expression(self,value,fmt):
         value_tr = value
-        for f in [a.get_name() for a in self.get_attributes()]:
+        for f in [a['name'] for a in self.get_attributes()]:
             value_tr = re.sub(r'\b[a-zA-Z_]\w*\b','',value_tr)
         numbers = re.findall("[-]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", value_tr)
         formatted = [("{value:"+fmt+"}").format(value=float(v)) for v in numbers]
@@ -435,11 +462,12 @@ class Tree:
             value = value.replace(k,v)
         return value
 
-    def to_dot_visual(self, parent=None, background_data: pd.DataFrame=None, instance2explain=None, counterfactual=None, file_format='png', palette='Set2', fmt=None) -> str:
+    def to_dot_visual(self, parent=None, background_data: pd.DataFrame=None, instance2explain=None, counterfactual=None, file_format='png', palette='Set2', fmt=".2f") -> str:
         path = '.'
         features=[]
         target_column = background_data.columns[-1]
         background_data[target_column] = background_data[target_column].astype(str)
+        pattern = r'\b[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*(?:\s[A-Za-z]+(?:[^a-zA-Z\s0-9]+[A-Za-z]+)*)*\b'
         if not os.path.exists(path+'/imgs/'):
             os.makedirs(path+'/imgs/')
         if parent:
@@ -486,15 +514,22 @@ class Tree:
                     op=''
                 else:
                     op='=='
-                sibling_data = background_data.query(parent.get_att()+f'{op}'+te.get_value().get_name())
+                
+                all_names = set(re.findall(pattern, te.get_value()['name'].replace("and", "")))
+                v = te.get_value()['name']
+                for name in all_names:
+                    new = '`' + name + '`'
+                    v = v.replace(name, new)
+
+                sibling_data = background_data.query(f"`{parent.get_att()}`" + f'{op}' + v)
                                                      
                 if not has_plotted and not parent.is_leaf():
                     result += f"{hash(parent)}[label=\"\",shape=box, color={col}, image=\"{path}/imgs/{hash(parent)}.{file_format}\"]"
                     has_plotted = True
-                    if re.search(r'\b[a-zA-Z_]\w*\b',te.get_value().get_name()):
+                    if re.search(r'\b[a-zA-Z_]\w*\b',te.get_value()['name']):
                         #it's and expression, and we need to visualize it as a plot of two features
                         plt.figure(figsize=(8,3))
-                        features = Tree.__find_features(background_data,te.get_value().get_name())
+                        features = Tree.__find_features(background_data,te.get_value()['name'])
                         grid=sns.scatterplot(data = background_data[features+[parent.get_att(),target_column]], x=features[0],y=parent.get_att(),
                                         hue=target_column,palette=palette,alpha=0.5)
                         if instance2explain is not None:
@@ -504,7 +539,7 @@ class Tree:
                             ax = grid.axes
                             ax.plot(counterfactual[features[0]],counterfactual[parent.get_att()], 'ob', markersize=8)
                         grid.axes.set_title(f"{parent.get_att()}",fontsize=20)
-                        data = background_data.eval(re.sub("[<>=]","",te.get_value().get_name())).to_frame(parent.get_att())
+                        data = background_data.eval(re.sub("[<>=]","", v)).to_frame(parent.get_att())
                         data[features[0]] = background_data[features[0]]
                         sns.lineplot(data=data,x=features[0],y=parent.get_att(), linestyle='--',color='r')
                         plt.savefig(f'{path}/imgs/{hash(parent)}.{file_format}', format=file_format,bbox_inches='tight')
@@ -514,7 +549,7 @@ class Tree:
                                          palette=palette,aspect=3,alpha=0.5)
                         ax = grid.axes[0][0]
                         ax.set_title(f"{parent.get_att()}",fontsize=20)
-                        ax.axvline(float(re.sub("[<>=]","",te.get_value().get_name())),linestyle='--',color='r')
+                        ax.axvline(float(re.sub("[<>=]","",te.get_value()['name'])),linestyle='--',color='r')
                         if instance2explain is not None:
                             ax.plot(instance2explain[parent.get_att()],1, 'or', markersize=8)
                         if counterfactual is not None:
@@ -522,19 +557,19 @@ class Tree:
                         plt.savefig(f'{path}/imgs/{hash(parent)}.{file_format}', format=file_format,bbox_inches='tight')
                         plt.close()
                 if parent.get_type() == Attribute.TYPE_NUMERICAL and fmt is not None:
-                    value = te.get_value().get_name()
+                    value = te.get_value()['name']
                     value=self.__format_expression(value,fmt)
                 else:
-                    value = value=te.get_value().get_name()
+                    value = te.get_value()['name']
                     
-                result += f"{hash(parent)}->{hash(te.get_child())}[label=\"{value}\n conf={round(te.get_value().get_confidence() * 100.0) / 100.0} \"]\n"
+                result += f"{hash(parent)}->{hash(te.get_child())}[label=\"{value}\n conf={round(te.get_value()['confidence'] * 100.0) / 100.0} \"]\n"
                 sibling_instance2explain=instance2explain
                 sibling_counterfactual=counterfactual
                 if instance2explain is not None:
-                    if len(instance2explain.query(parent.get_att()+f'{op}'+te.get_value().get_name())) == 0:
+                    if len(instance2explain.query(f"`{parent.get_att()}`"+f'{op}'+v)) == 0:
                         sibling_instance2explain=None 
                 if counterfactual is not None:
-                    if len(counterfactual.query(parent.get_att()+f'{op}'+te.get_value().get_name())) == 0:
+                    if len(counterfactual.query(f"`{parent.get_att()}`"+f'{op}'+v)) == 0:
                         sibling_counterfactual=None 
                 result += self.to_dot_visual(parent=te.get_child(),background_data=sibling_data,
                                             instance2explain=sibling_instance2explain, 
@@ -575,7 +610,7 @@ class Tree:
 
 
     class Condition:
-        def __init__(self, att_name: str, value: Value, op='eq'):
+        def __init__(self, att_name: str, value: Dict, op='eq'):
             self.att_name = att_name
             self.value = value
             self.op = op

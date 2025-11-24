@@ -8,14 +8,12 @@ import pandas as pd
 import numpy as np
 import warnings
 
-
-from .value import Value
 from .attribute import Attribute
 # from pyuid3.data import Data   # may cause problems
 
 # Cell
 class AttStats:
-    def __init__(self, statistics: Dict[str,Value], avg_confidence: float, avg_abs_importance: float, total_samples: int,  att_type: int):
+    def __init__(self, statistics: Dict[str,Dict], avg_confidence: float, avg_abs_importance: float, total_samples: int,  att_type: int):
         self.statistics = statistics
         self.avg_confidence = avg_confidence
         self.avg_abs_importance = avg_abs_importance
@@ -23,47 +21,44 @@ class AttStats:
         self.total_samples = total_samples
 
     @staticmethod
-    def calculate_statistics(att: Attribute, data: 'Data') -> 'AttStats':    # TODO: rename to get_stats
+    def calculate_statistics(att: Dict, data) -> 'AttStats':
         conf_sum = {}
         avg_conf = 0
         avg_abs_importance = 0
 
-        instances = data.instances #get_instances() #no_need2copy
+        instances = data.instances #no_need2copy
+
+        if instances is None or len(instances) == 0:
+            return AttStats(conf_sum, avg_conf, avg_abs_importance,0, att['type'])
         
-        if not instances:
-            return AttStats(conf_sum, avg_conf, avg_abs_importance,0, att.get_type())
-        
-        att_name=att.get_name()
+        att_name=att['name']
         for instance in instances:
-            r = instance.get_reading_for_attribute(att_name)
-            values = r.get_values()
+            r = instance['readings'][att_name]
+            values = r['values']
             for v in values:
-                valname = v.get_name()
+                valname = v['name']
                 old = conf_sum.get(valname,None)
                 if old is not None: 
-                    conf_sum[valname] +=  v.get_confidence()
+                    conf_sum[valname] += v['confidence']
                 else:
-                    conf_sum[valname] = v.get_confidence()
+                    conf_sum[valname] = v['confidence']
             
-            avg_conf += r.get_most_probable().get_confidence()
-            avg_abs_importance += sum(abs(iv) for iv in r.get_most_probable().get_importances().values())
+            avg_conf += r['most_probable']['confidence']
+            avg_abs_importance += sum(abs(iv) for iv in r['most_probable']['importances'].values())
 
         size = len(data)
         avg_conf /= size
         avg_abs_importance /= size
         stats = {}
         for stat_k,stat_v in conf_sum.items():
-        #     #Walkaround to deal with numerical values that can have decimal places, e.g.to make sure  3 == 3.0
-            if att.get_type() == Attribute.TYPE_NUMERICAL:
-                stats[str(float(stat_k))]=(Value(stat_k, stat_v/size))
-            else:
-                stats[stat_k]=(Value(stat_k, stat_v/size))
-        return AttStats(stats, avg_conf,avg_abs_importance=avg_abs_importance, total_samples=size, att_type=att.get_type())
+            #Walkaround to deal with numerical values that can have decimal places, e.g.to make sure  3 == 3.0
+            if att['type'] == Attribute.TYPE_NUMERICAL:
+                stat_k = str(float(stat_k))
+            stats[stat_k]=({'name': stat_k, 'confidence': stat_v/size, 'importances': {'Value':1}})
 
+        return AttStats(stats, avg_conf, avg_abs_importance=avg_abs_importance, total_samples=size, att_type=att['type'])
 
-
-
-    def get_statistics(self) -> List[Value]: 
+    def get_statistics(self) -> List[Dict]: 
         return list(self.statistics.values())
 
     def get_avg_confidence(self) -> float:
@@ -79,23 +74,23 @@ class AttStats:
             warnings.warn("Warning: calculating confidence for contibues value. Consider using get_total_stat_for_lt_value or get_total_stat_for_gte_value")
             value_name = str(float(value_name))
         if value_name in self.statistics.keys():
-            return self.statistics[value_name].get_confidence()
+            return self.statistics[value_name]['confidence']
         else:
             return 0
         
     def get_stat_for_lt_value(self, value_name: str) -> float:        
-        return np.sum([c.get_confidence() for v,c in self.statistics.items() if float(value_name) > float(v)])/self.total_samples
+        return np.sum([c['confidence'] for v,c in self.statistics.items() if float(value_name) > float(v)])/self.total_samples
     
     def get_stat_for_gte_value(self, value_name: str) -> float:        
-        return np.sum([c.get_confidence() for v,c in self.statistics.items() if float(value_name) <= float(v)])/self.total_samples
+        return np.sum([c['confidence'] for v,c in self.statistics.items() if float(value_name) <= float(v)])/self.total_samples
         
 
-    def get_most_probable(self) -> Value:
+    def get_most_probable(self) -> Dict:
         statistics = list(self.statistics.values())
-        confidence = [value.get_confidence() for value in statistics]
+        confidence = [value['confidence'] for value in statistics]
         highest_conf = max(confidence)
         index = confidence.index(highest_conf)
-        return  statistics[index]
+        return statistics[index]
    
 
     def __str__(self) -> str:
@@ -106,5 +101,5 @@ class AttStats:
         result += '}'
         return result
     
-    def copy(self):
-        return type(self)(statistics=self.statistics.copy(), avg_confidence=self.avg_confidence ,avg_abs_importance=self.avg_abs_importance,att_type=self.att_type , total_samples=self.total_samples )
+    def copy(self) -> 'AttStats':
+        return type(self)(statistics=self.statistics.copy(), avg_confidence=self.avg_confidence ,avg_abs_importance=self.avg_abs_importance,att_type=self.att_type , total_samples=self.total_samples)

@@ -3,16 +3,15 @@
 __all__ = ['TreeEdge']
 
 # Cell
-from .value import Value
 from .tree_node import TreeNode
 
 # Cell
 class TreeEdge:
-    def __init__(self, value: Value, child: 'TreeNode'):
+    def __init__(self, value, child: 'TreeNode'):
         self.value = value
         self.child = child
 
-    def get_value(self) -> Value:
+    def get_value(self):
         return self.value
 
     def get_child(self) -> 'TreeNode':

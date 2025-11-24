@@ -4,9 +4,6 @@ __all__ = ['DataScrambler']
 
 # Cell
 from .data import Data
-from .reading import Reading
-from .value import Value
-from .instance import Instance
 from typing import List
 import random
 
@@ -26,49 +23,59 @@ class DataScrambler:
 
         instance_idx = 0
         for i in original.get_instances():
-            new_instance = Instance()
+            new_instance = {'readings': {}}
             scrambled = []
             for c in conf:
                 if instance_idx in idxs_for_scrambling[c]:
-                    to_scramble = i.get_reading_for_attribute(c.att_name)
+                    to_scramble = i['readings'][c.att_name]
                     scrambled_readings = []
 
                     # scramble, add to scrambled
                     best_val = to_scramble.get_most_probable()
-                    scrambled_readings.append(Value(best_val.get_name(), best_val.get_confidence() - c.mistake_epsilon))
+                    scrambled_readings.append({'name': best_val['name'], 
+                                               'confidence': best_val['confidence'] - c.mistake_epsilon, 
+                                               'importances': {'Value':1}})
                     to_be_selected = []
-                    for v in to_scramble.get_values():
+                    for v in to_scramble['values']:
                         if v == best_val:
                             continue
                         if c.uniform:
-                            scrambled_readings.append(Value(v.get_name(),
-                                v.get_confidence() + c.mistake_epsilon/(len(to_scramble.get_values()) - 1)))
+                            scrambled_readings.append({'name': v['name'], 
+                                                       'confidence': v['confidence'] + c.mistake_epsilon/(len(to_scramble['values']) - 1), 
+                                                       'importances': {'Value':1}})
                         else:
                             to_be_selected.append(v)
 
                     if to_be_selected:
                         rand = random.randint(0, len(to_be_selected) - 1)
                         winner = to_be_selected[rand]
-                        scrambled_readings.append(
-                            Value(winner.get_name(), winner.get_confidence() + c.mistake_epsilon))
+                        scrambled_readings.append({'name': winner['name'], 
+                                                   'confidence': winner['confidence'] + c.mistake_epsilon, 
+                                                   'importances': {'Value': 1}})
                         to_be_selected.remove(winner)
 
                     scrambled_readings += to_be_selected
-
+                    index = 0
+                    if len(scrambled_readings) > 1:
+                        confidence = [value['confidence'] for value in scrambled_readings]
+                        highest_conf = max(confidence)
+                        index = confidence.index(highest_conf)
                     # now, we have complete reading in scrambled reading, add it to scrambled
-                    scrambled.append(Reading(original.get_attribute_of_name(c.att_name), scrambled_readings))
+                    scrambled.append({'base_att': original['readings'][c.att_name], 
+                                      'values': scrambled_readings, 
+                                      'most_probable': scrambled_readings[index]})
 
             # add scrambled and not scrambled to new instance - remember to keep the order of the original data
-            for orig_reading in i.get_readings():
+            for orig_reading in i['readings']:
                 # find in scrambled
                 was_scrambled = False
                 for scr_reading in scrambled:
-                    if scr_reading.get_base_att().get_name() == orig_reading.get_base_att().get_name():
-                        new_instance.add_reading(scr_reading)
+                    if scr_reading['base_att']['name'] == orig_reading['base_att']['name']:
+                        new_instance['readings'][scr_reading['base_att']['name']] = scr_reading
                         was_scrambled = True
                         break
                 if not was_scrambled:
-                    new_instance.add_reading(orig_reading)
+                    new_instance['readings'][orig_reading['base_att']['name']] = orig_reading
 
             # add instance
             inst.append(new_instance)
