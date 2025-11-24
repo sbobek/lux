@@ -1,7 +1,7 @@
 Release notes
 =============
 
-2.0.0 (2025-06-13)
+2.0.0 (2025-11-24)
 -------------
 * Suspended support fro UARFF files
 * Significant improvement of the backbone decision tree generation mechanism by moving away from object-oriented structure and focusing purely on Python-optimized structures (dicts)
