@@ -2,6 +2,7 @@
  ![PyPI - Downloads](https://img.shields.io/pypi/dm/lux-explainer) [![Documentation Status](https://readthedocs.org/projects/lux-explainer/badge/?version=latest)](https://tsproto.readthedocs.io/en/latest/?badge=latest)
    
 # LUX (Local Universal Rule-based Explainer)
+
 ## Main features
   <img align="right"  src="https://raw.githubusercontent.com/sbobek/lux/main/pix/lux-logo.png" width="200">
   
@@ -10,11 +11,11 @@
   * Rule-based explanations (that are executable at the same time)
   * Oblique trees backbone, which allows to explain more reliable linear decision boundaries
   * Integration with [Shapley values](https://shap.readthedocs.io/en/latest/) or [Lime](https://github.com/marcotcr/lime) importances (or any other explainer that produces importances) that help in generating high quality rules
-  * It outperforms state-ot-the-art explainers (see: [LUX Benchmark branch](https://github.com/sbobek/lux/tree/lux-benchmark) for reproducibel benchmarks and evaluation code)
+  * It outperforms state-of-the-art explainers (see: [LUX paper](https://arxiv.org/abs/2310.14894) for details )
   
 ## About
 The workflow for LUX looks as follows:
-  - You train an arbitrary selected machine learning model on your train dataset. The only requirements is that the model is able to output probabilities.
+  - You train an arbitrary selected machine learning model on your train dataset. The only requirement is that the model is able to output probabilities.
   
   ![](https://raw.githubusercontent.com/sbobek/lux/main/pix/decbound-point.png)
   - Next, you generate neighbourhood of an instance you wish to explain and you feed this neighbourhood to your model. 
@@ -27,7 +28,7 @@ The workflow for LUX looks as follows:
   ```
   ['IF x2  < 0.01 AND  THEN class = 1 # 0.9229009792453621']
   ```
-  - It obtained highest scores for most of th epopular metrics on 57 bechmark datasets from OpenML repository in comparison to state of the art algorithms such as LORE, Anchor, EXPLAN. The higher the area in the plot, the better.
+  - It obtained the highest scores for most of the popular metrics on 57 benchmark datasets from OpenML repository in comparison to state of the art algorithms such as LORE, Anchor, EXPLAN. The higher the area in the plot, the better.
   ![]( https://raw.githubusercontent.com/sbobek/lux/main/pix/spiderplot.svg)
 
 ## Installation

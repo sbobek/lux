@@ -109,7 +109,7 @@ def local_fidelity(rule, dataset, features, categorical_indicator, prediction,
     for i, v in rule.items():
         op = '' if dict(zip(features, categorical_indicator))[i] == False else '=='
         query.append(f'{i}{op}' + f' and {i}{op}'.join(v))
-    print(' and '.join(query))
+        
     covered = dataset.query(' and '.join(query))
     predictions = np.ones(covered[class_label].shape[0]) * float(prediction)
 

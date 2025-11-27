@@ -102,7 +102,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
         """
         # calculate shap values
         try:
-            explainer = shap.Explainer(self.classifier, X_train_sample)
+            explainer = shap.Explainer(self.classifier, X_train_sample,seed=42)
             if hasattr(explainer, "shap_values"):
                 shap_values = explainer.shap_values(X_train_sample, check_additivity=False)
             else:
@@ -113,7 +113,7 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             else:
                 expected_values = [np.mean(v) for v in shap_values]
         except:
-            explainer = shap.Explainer(self.predict_proba, X_train_sample)
+            explainer = shap.Explainer(self.predict_proba, X_train_sample,seed=42)
             shap_values = explainer(X_train_sample).values
             shap_values = [sv for sv in np.moveaxis(shap_values, 2, 0)]
             expected_values = [np.mean(v) for v in shap_values]
@@ -189,14 +189,15 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             cl = self.classifier.predict(self.process_input(last.reshape(1, -1)))[0]
 
             grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
-            for _ in range(0, num):
+            grad = np.sign(grad)
+
+            for _ in range(num):
                 # cl = self.classifier.predict(last.reshape(1,-1))[0]
-                last = last - alpha / num * np.sign(grad)
-                if np.sqrt(np.sum((np.array(last) - instance_to_explain) * (
-                        np.array(last) - instance_to_explain))) > meandist:
+                last -= alpha / num * grad
+                if np.linalg.norm(np.array(last) - instance_to_explain) > meandist:
                     break
-                grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
                 newx.append(last.copy())
+
             return np.array(newx)
 
         def perturbortho(x, num, alpha, gradients, cols):
@@ -206,18 +207,17 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
             cl = self.classifier.predict(self.process_input(last.reshape(1, -1)))[0]
 
             grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
+            grad = np.sign(grad)
+
             for d in range(len(cols)):
                 last = x[cols].values
-                for _ in range(0, num):
-                    cl = self.classifier.predict(self.process_input(last.reshape(1, -1)))[0]
-                    last[d] -= alpha[d] / num * np.sign(grad[d])
-                    if np.sqrt(np.sum((np.array(last) - instance_to_explain) * (
-                            np.array(last) - instance_to_explain))) > meandist:
+                for _ in range(num):
+                    last[d] -= alpha[d] / num * grad[d]
+                    if np.linalg.norm(np.array(last) - instance_to_explain) > meandist:
                         break
-                    grad = np.array([g(last[i]) for i, g in enumerate(gradients[cl])])
                     newx.append(last.copy())
-            return np.array(newx)
 
+            return np.array(newx)
         if fulldf.shape[0] > 0:
             upsamplesa = np.concatenate(
                 fulldf_all.iloc[[0]].apply(perturb, args=(int(len(X_train_sample)), alpha, gradsf, cols),
@@ -230,7 +230,6 @@ class ImportanceSampler(TransformerMixin, BaseEstimator):
                           pd.DataFrame(upsamplesb, columns=X_train_sample.columns), X_train_sample))
         else:
             upsamples = fulldf
-
         return upsamples
 
 
