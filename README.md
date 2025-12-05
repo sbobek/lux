@@ -50,9 +50,8 @@ jupyter lab
 **Note**: Your output may differ from the example below, depending on the instance to explain that is selected, as LUX is local explainer.
 
   * For online working example (basic usage), see [Colab basic usage example](https://colab.research.google.com/drive/123h5BdTfOK7adhe8nvvd7UPtNPBIuTgL?usp=sharing)
-  * For complete usage see [lux_usage_example.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example.ipynb)
-  * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](https://raw.githubusercontent.com/sbobek/lux/main/examples/lux_usage_example_shap.ipynb)
-
+  * For complete usage see [lux_usage_example.ipynb](https://github.com/sbobek/lux/blob/main/examples/lux_usage_example.ipynb)
+  * Fos usage example with Shap integration see [lux_usage_example_shap.ipynb](https://github.com/sbobek/lux/blob/main/examples/lux_usage_example_shap.ipynb)
 ### Simple example on Iris dataset
 
 ``` python
