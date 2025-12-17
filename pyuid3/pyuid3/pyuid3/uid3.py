@@ -314,18 +314,7 @@ class UId3(BaseEstimator):
             shap_values=[sv for sv in np.moveaxis(imp, 2,0)]
             expected_values=[np.mean(v) for v in shap_values]
         elif classifier is not None and len(data.get_instances()) >= self.NODE_SIZE_LIMIT:
-            datadf = data.to_dataframe()     
-            # try:
-            #     datadfx = datadf.iloc[:,:-1]
-            #     sm = UncertainSMOTEID3(predict_proba=classifier.predict_proba,sigma=1,sampling_strategy='all') 
-            #     datadfx, _ = sm.fit_resample(datadfx, np.argmax(classifier.predict_proba(datadfx),axis=1))
-            #     y_train_sample = classifier.predict_proba(datadfx)
-            #     #limit features here
-            #     uarff=UId3.generate_uarff(datadfx,y_train_sample, X_importances=None,categorical=None,class_names=[0,1])
-            #     data = Data.parse_uarff_from_string(uarff)
-            #     datadf = data.to_dataframe()
-            # except:
-            #     pass
+            datadf = data.to_dataframe()
             
             try:
                 explainer = shap.Explainer(classifier,datadf.iloc[:,:-1])
@@ -352,8 +341,7 @@ class UId3(BaseEstimator):
             #find max and rescale:
             maxshap = max([np.max(np.abs(sv)) for sv in shap_values]) #ADD
             shap_values = [sv/maxshap for sv in shap_values] #ADD
-            #print(f'Max {maxshap}')
-            #print(f'all {shap_values}')
+
             
             shap_dict={}
             expected_dict={}
